@@ -44,14 +44,9 @@ flutter:
 
 topics:
   - flutter
+  - cross-platform
   - web
   - desktop
   - mobile
-  - native
-  - optimization
-  - seo
-  - bundling
-  - cross-platform
-  - unification
 
 
