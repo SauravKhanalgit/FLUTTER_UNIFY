@@ -1,0 +1,23 @@
+# Build artifacts
+build/
+.dart_tool/
+
+# Test files (keep main test directory but exclude validation script)
+test_validation.dart
+
+# Development files
+DEVELOPMENT_SUMMARY.md
+TEST_RESULTS.md
+
+# IDE files
+.vscode/
+.idea/
+*.iml
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
