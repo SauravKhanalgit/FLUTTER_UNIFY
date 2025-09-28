@@ -14,8 +14,9 @@
 
 import 'dart:async';
 import 'dart:typed_data';
-import '../models/storage_models.dart';
-import '../adapters/files_adapter.dart';
+
+import '../../models/storage_models.dart';
+import '../../adapters/files_adapter.dart';
 
 /// Unified files and storage API
 ///
@@ -251,6 +252,7 @@ class UnifiedFiles {
   /// Take a photo with camera
   Future<UnifiedFile?> takePhoto() async {
     if (_adapter == null) return null;
+    // Use your own ImageSource model from storage_models.dart
     return await _adapter!.pickImage(source: ImageSource.camera);
   }
 
@@ -603,7 +605,7 @@ class DefaultFilesAdapter extends FilesAdapter {
         url: url,
         savePath: savePath,
         totalBytes: totalBytes,
-        downloadedBytes: (totalBytes * i / 100).round(),
+        downloadedBytes: (totalBytes * i ~/ 100),
         percentage: i.toDouble(),
         isComplete: i == 100,
       );

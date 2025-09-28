@@ -179,6 +179,7 @@ class AuthConfig {
   const AuthConfig({
     this.enableBiometrics = true,
     this.enableRememberMe = true,
+    this.persistSession = true,
     this.sessionTimeout = const Duration(days: 30),
     this.maxLoginAttempts = 5,
     this.enableMultiFactorAuth = false,
@@ -190,6 +191,7 @@ class AuthConfig {
 
   final bool enableBiometrics;
   final bool enableRememberMe;
+  final bool persistSession;
   final Duration sessionTimeout;
   final int maxLoginAttempts;
   final bool enableMultiFactorAuth;

@@ -2,138 +2,9 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import '../../common/platform_detector.dart';
 import '../../common/event_emitter.dart';
-import '../unify.dart';
-
-/// Authentication provider types
-enum AuthProvider {
-  google,
-  apple,
-  facebook,
-  twitter,
-  github,
-  microsoft,
-  firebase,
-  oauth,
-  webauthn,
-  native,
-  custom,
-}
-
-/// Authentication result
-class AuthResult {
-  final bool success;
-  final UnifiedUser? user;
-  final String? error;
-  final String? idToken;
-  final String? accessToken;
-  final String? refreshToken;
-  final Map<String, dynamic>? metadata;
-
-  const AuthResult({
-    required this.success,
-    this.user,
-    this.error,
-    this.idToken,
-    this.accessToken,
-    this.refreshToken,
-    this.metadata,
-  });
-
-  factory AuthResult.success(
-    UnifiedUser user, {
-    String? idToken,
-    String? accessToken,
-    String? refreshToken,
-    Map<String, dynamic>? metadata,
-  }) {
-    return AuthResult(
-      success: true,
-      user: user,
-      idToken: idToken,
-      accessToken: accessToken,
-      refreshToken: refreshToken,
-      metadata: metadata,
-    );
-  }
-
-  factory AuthResult.failure(String error) {
-    return AuthResult(
-      success: false,
-      error: error,
-    );
-  }
-}
-
-/// Unified user representation
-class UnifiedUser {
-  final String id;
-  final String? email;
-  final String? displayName;
-  final String? photoUrl;
-  final String? phoneNumber;
-  final bool emailVerified;
-  final bool isAnonymous;
-  final DateTime? creationTime;
-  final DateTime? lastSignInTime;
-  final Map<String, dynamic>? customClaims;
-  final List<AuthProvider> linkedProviders;
-
-  const UnifiedUser({
-    required this.id,
-    this.email,
-    this.displayName,
-    this.photoUrl,
-    this.phoneNumber,
-    this.emailVerified = false,
-    this.isAnonymous = false,
-    this.creationTime,
-    this.lastSignInTime,
-    this.customClaims,
-    this.linkedProviders = const [],
-  });
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'email': email,
-      'displayName': displayName,
-      'photoUrl': photoUrl,
-      'phoneNumber': phoneNumber,
-      'emailVerified': emailVerified,
-      'isAnonymous': isAnonymous,
-      'creationTime': creationTime?.toIso8601String(),
-      'lastSignInTime': lastSignInTime?.toIso8601String(),
-      'customClaims': customClaims,
-      'linkedProviders': linkedProviders.map((p) => p.name).toList(),
-    };
-  }
-
-  factory UnifiedUser.fromJson(Map<String, dynamic> json) {
-    return UnifiedUser(
-      id: json['id'],
-      email: json['email'],
-      displayName: json['displayName'],
-      photoUrl: json['photoUrl'],
-      phoneNumber: json['phoneNumber'],
-      emailVerified: json['emailVerified'] ?? false,
-      isAnonymous: json['isAnonymous'] ?? false,
-      creationTime: json['creationTime'] != null
-          ? DateTime.parse(json['creationTime'])
-          : null,
-      lastSignInTime: json['lastSignInTime'] != null
-          ? DateTime.parse(json['lastSignInTime'])
-          : null,
-      customClaims: json['customClaims'],
-      linkedProviders: (json['linkedProviders'] as List?)
-              ?.map((p) => AuthProvider.values.firstWhere(
-                    (provider) => provider.name == p,
-                    orElse: () => AuthProvider.custom,
-                  ))
-              .toList() ??
-          [],
-    );
-  }
-}
+import '../../adapters/auth_adapter.dart';
+import '../../models/auth_models.dart';
+import '../config/unify_config.dart';
 
 /// Unified authentication module following the new architecture
 ///
@@ -255,7 +126,7 @@ class UnifiedAuth extends EventEmitter {
     try {
       _emitAuthEvent(AuthEvent(
         type: AuthEventType.signInAttempt,
-        provider: AuthProvider.firebase,
+        provider: AuthProvider.emailPassword,
         data: {'email': email},
       ));
 
@@ -270,13 +141,13 @@ class UnifiedAuth extends EventEmitter {
         await _setCurrentUser(result.user!);
         _emitAuthEvent(AuthEvent(
           type: AuthEventType.signInSuccess,
-          provider: AuthProvider.firebase,
+          provider: AuthProvider.emailPassword,
           user: result.user,
         ));
       } else {
         _emitAuthEvent(AuthEvent(
           type: AuthEventType.signInFailure,
-          provider: AuthProvider.firebase,
+          provider: AuthProvider.emailPassword,
           error: result.error,
         ));
       }
@@ -286,7 +157,7 @@ class UnifiedAuth extends EventEmitter {
       final error = e.toString();
       _emitAuthEvent(AuthEvent(
         type: AuthEventType.signInFailure,
-        provider: AuthProvider.firebase,
+        provider: AuthProvider.emailPassword,
         error: error,
       ));
       return AuthResult.failure(error);
@@ -302,7 +173,7 @@ class UnifiedAuth extends EventEmitter {
     try {
       _emitAuthEvent(AuthEvent(
         type: AuthEventType.signInAttempt,
-        provider: AuthProvider.native,
+        provider: AuthProvider.biometric,
       ));
 
       final result = await _signInWithBiometricsImpl();
@@ -311,7 +182,7 @@ class UnifiedAuth extends EventEmitter {
         await _setCurrentUser(result.user!);
         _emitAuthEvent(AuthEvent(
           type: AuthEventType.signInSuccess,
-          provider: AuthProvider.native,
+          provider: AuthProvider.biometric,
           user: result.user,
         ));
       }
@@ -327,9 +198,9 @@ class UnifiedAuth extends EventEmitter {
     try {
       final user = UnifiedUser(
         id: 'anonymous_${DateTime.now().millisecondsSinceEpoch}',
-        isAnonymous: true,
-        creationTime: DateTime.now(),
-        lastSignInTime: DateTime.now(),
+        providers: [AuthProvider.anonymous],
+        createdAt: DateTime.now(),
+        lastSignInAt: DateTime.now(),
       );
 
       await _setCurrentUser(user);
@@ -398,8 +269,6 @@ class UnifiedAuth extends EventEmitter {
   /// Check if provider is available on current platform
   bool isProviderAvailable(AuthProvider provider) {
     switch (provider) {
-      case AuthProvider.webauthn:
-        return kIsWeb;
       case AuthProvider.apple:
         return PlatformDetector.isIOS || PlatformDetector.isMacOS || kIsWeb;
       case AuthProvider.google:
@@ -407,12 +276,15 @@ class UnifiedAuth extends EventEmitter {
       case AuthProvider.twitter:
       case AuthProvider.github:
       case AuthProvider.microsoft:
-      case AuthProvider.oauth:
         return true;
-      case AuthProvider.native:
+      case AuthProvider.biometric:
         return !kIsWeb;
-      case AuthProvider.firebase:
+      case AuthProvider.emailPassword:
+      case AuthProvider.anonymous:
+      case AuthProvider.phone:
       case AuthProvider.custom:
+      case AuthProvider.sso:
+      case AuthProvider.mfa:
         return true;
     }
   }
@@ -558,7 +430,7 @@ class AuthEvent {
     return {
       'type': type.name,
       'provider': provider?.name,
-      'user': user?.toJson(),
+      'user': user?.toString(),
       'error': error,
       'data': data,
       'timestamp': timestamp.toIso8601String(),

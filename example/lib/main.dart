@@ -3,26 +3,23 @@ import 'package:flutter_unify/flutter_unify.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  // Initialize core unified services
+  
+  // Initialize the unified framework
   await _initializeUnifiedServices();
-
+  
   runApp(UnifiedDemoApp());
 }
 
 Future<void> _initializeUnifiedServices() async {
   try {
-    await Future.wait([
-      UnifiedNotifications.instance.initialize(),
-      UnifiedStorage.instance.initialize(),
-      UnifiedAuth.instance.initialize(),
-      UnifiedMedia.instance.initialize(),
-      UnifiedNetworking.instance.initialize(),
-      UnifiedBackgroundServices.instance.initialize(),
-    ]);
-    print('✅ All unified services initialized successfully');
+    final initialized = await Unify.initialize();
+    if (initialized) {
+      print('✅ Unify framework initialized successfully');
+    } else {
+      print('❌ Failed to initialize Unify framework');
+    }
   } catch (e) {
-    print('❌ Failed to initialize services: $e');
+    print('❌ Failed to initialize Unify: $e');
   }
 }
 
@@ -46,85 +43,50 @@ class UnifiedHomePage extends StatefulWidget {
 }
 
 class _UnifiedHomePageState extends State<UnifiedHomePage> {
-  UnifiedUser? _currentUser;
-  ConnectivityStatus _connectivity = ConnectivityStatus.none;
+  String _currentUser = 'Not signed in';
+  String _connectivity = 'Unknown';
   List<String> _logs = [];
 
   @override
   void initState() {
     super.initState();
     _setupListeners();
-    _scheduleBackgroundTasks();
   }
 
   void _setupListeners() {
-    // Auth state changes
-    UnifiedAuth.instance.authStateChanges.listen((user) {
-      setState(() => _currentUser = user);
-      _addLog('Auth: ${user?.email ?? 'Signed out'}');
-    });
+    // Auth state changes - using the correct API
+    try {
+      Unify.auth.onAuthStateChanged.listen((user) {
+        setState(() => _currentUser = user?.email ?? 'Not signed in');
+        _addLog('Auth: ${user?.email ?? 'Signed out'}');
+      });
+    } catch (e) {
+      _addLog('Auth listener error: $e');
+    }
 
-    // Connectivity changes
-    UnifiedNetworking.instance.connectivityStream.listen((status) {
-      setState(() => _connectivity = status);
-      _addLog('Network: ${status.name}');
-    });
-
-    // Notification taps
-    UnifiedNotifications.instance.on('notification-tapped', (data) {
-      _addLog('Notification tapped: ${data['title']}');
-    });
+    // Connectivity changes - using the correct API
+    try {
+      Unify.networking.onConnectivityChanged.listen((status) {
+        setState(() => _connectivity = status.isConnected ? 'Online' : 'Offline');
+        _addLog('Network: ${status.isConnected ? 'Connected' : 'Disconnected'}');
+      });
+    } catch (e) {
+      _addLog('Network listener error: $e');
+    }
   }
 
   void _addLog(String message) {
     setState(() {
-      _logs.insert(0,
-          '${DateTime.now().toLocal().toString().substring(11, 19)}: $message');
+      _logs.insert(0, '${DateTime.now().toLocal().toString().substring(11, 19)}: $message');
       if (_logs.length > 10) _logs.removeLast();
     });
-  }
-
-  Future<void> _scheduleBackgroundTasks() async {
-    try {
-      // Register notification handler
-      UnifiedBackgroundServices.instance.registerTaskHandler(
-        'demo_notifications',
-        (context) async {
-          await UnifiedNotifications.instance.show(
-            'Background Task',
-            body: 'This notification was sent from a background task! 🚀',
-            data: {
-              'source': 'background',
-              'timestamp': DateTime.now().toIso8601String()
-            },
-          );
-          return TaskExecutionResult.success();
-        },
-      );
-
-      // Schedule periodic notifications (every 2 minutes for demo)
-      await UnifiedBackgroundServices.instance.scheduleTask(
-        BackgroundTaskConfig(
-          id: 'demo_notifications',
-          name: 'Demo Notifications',
-          type: BackgroundTaskType.periodic,
-          interval: Duration(minutes: 2),
-          constraints: {},
-          persistAcrossReboot: false,
-        ),
-      );
-
-      _addLog('Background tasks scheduled');
-    } catch (e) {
-      _addLog('Background task error: $e');
-    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Flutter Unify - Best in Class'),
+        title: Text('Flutter Unify - Best in Class Demo'),
         backgroundColor: Colors.blue[600],
         elevation: 2,
         actions: [
@@ -133,13 +95,14 @@ class _UnifiedHomePageState extends State<UnifiedHomePage> {
             child: Row(
               children: [
                 Icon(
-                    _connectivity == ConnectivityStatus.none
-                        ? Icons.wifi_off
-                        : Icons.wifi,
-                    color: Colors.white),
+                  _connectivity == 'Offline' ? Icons.wifi_off : Icons.wifi,
+                  color: Colors.white,
+                ),
                 SizedBox(width: 4),
-                Text(_connectivity.name,
-                    style: TextStyle(fontSize: 12, color: Colors.white)),
+                Text(
+                  _connectivity,
+                  style: TextStyle(fontSize: 12, color: Colors.white),
+                ),
               ],
             ),
           ),
@@ -156,31 +119,24 @@ class _UnifiedHomePageState extends State<UnifiedHomePage> {
               children: [
                 Expanded(
                   child: Text(
-                    _currentUser != null
-                        ? '👤 ${_currentUser!.displayName ?? _currentUser!.email}'
-                        : '👤 Not signed in',
+                    '👤 $_currentUser',
                     style: TextStyle(fontWeight: FontWeight.w500),
                   ),
                 ),
                 Container(
                   padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: _connectivity != ConnectivityStatus.none
-                        ? Colors.green
-                        : Colors.red,
+                    color: _connectivity == 'Online' ? Colors.green : Colors.red,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
-                    _connectivity != ConnectivityStatus.none
-                        ? 'Online'
-                        : 'Offline',
+                    _connectivity,
                     style: TextStyle(color: Colors.white, fontSize: 12),
                   ),
                 ),
               ],
             ),
           ),
-
           // Main content
           Expanded(
             child: SingleChildScrollView(
@@ -198,12 +154,9 @@ class _UnifiedHomePageState extends State<UnifiedHomePage> {
                     style: TextStyle(color: Colors.grey[600]),
                   ),
                   SizedBox(height: 20),
-
                   // Feature cards
                   _buildFeatureGrid(),
-
                   SizedBox(height: 20),
-
                   // Logs section
                   _buildLogsSection(),
                 ],
@@ -236,22 +189,16 @@ class _UnifiedHomePageState extends State<UnifiedHomePage> {
         onTap: _testStorage,
       ),
       FeatureCard(
-        title: '📸 Media',
-        subtitle: 'Camera, files, device access',
+        title: '📋 System',
+        subtitle: 'System clipboard & info',
         color: Colors.red,
-        onTap: _testMedia,
+        onTap: _testSystem,
       ),
       FeatureCard(
         title: '🌐 Networking',
         subtitle: 'HTTP, WebSocket, offline queue',
         color: Colors.blue,
         onTap: _testNetworking,
-      ),
-      FeatureCard(
-        title: '⚙️ Background',
-        subtitle: 'Cross-platform background tasks',
-        color: Colors.teal,
-        onTap: _testBackgroundServices,
       ),
     ];
 
@@ -330,8 +277,10 @@ class _UnifiedHomePageState extends State<UnifiedHomePage> {
           children: [
             Row(
               children: [
-                Text('📋 Activity Log',
-                    style: TextStyle(fontWeight: FontWeight.bold)),
+                Text(
+                  '📋 Activity Log',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
                 Spacer(),
                 TextButton(
                   onPressed: () => setState(() => _logs.clear()),
@@ -344,8 +293,11 @@ class _UnifiedHomePageState extends State<UnifiedHomePage> {
               height: 120,
               child: _logs.isEmpty
                   ? Center(
-                      child: Text('No activity yet',
-                          style: TextStyle(color: Colors.grey)))
+                      child: Text(
+                        'No activity yet',
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                    )
                   : ListView.builder(
                       itemCount: _logs.length,
                       itemBuilder: (context, index) {
@@ -353,8 +305,7 @@ class _UnifiedHomePageState extends State<UnifiedHomePage> {
                           padding: EdgeInsets.symmetric(vertical: 2),
                           child: Text(
                             _logs[index],
-                            style: TextStyle(
-                                fontSize: 12, fontFamily: 'monospace'),
+                            style: TextStyle(fontSize: 12, fontFamily: 'monospace'),
                           ),
                         );
                       },
@@ -369,9 +320,9 @@ class _UnifiedHomePageState extends State<UnifiedHomePage> {
   // Test methods
   Future<void> _testAuth() async {
     try {
-      if (_currentUser == null) {
+      if (_currentUser == 'Not signed in') {
         _addLog('Testing authentication...');
-        final result = await UnifiedAuth.instance.signInAnonymously();
+        final result = await Unify.auth.signInAnonymously();
         if (result.success) {
           _addLog('✅ Anonymous sign in successful');
         } else {
@@ -379,7 +330,7 @@ class _UnifiedHomePageState extends State<UnifiedHomePage> {
         }
       } else {
         _addLog('Signing out...');
-        await UnifiedAuth.instance.signOut();
+        await Unify.auth.signOut();
         _addLog('✅ Signed out successfully');
       }
     } catch (e) {
@@ -390,10 +341,13 @@ class _UnifiedHomePageState extends State<UnifiedHomePage> {
   Future<void> _testNotifications() async {
     try {
       _addLog('Sending notification...');
-      await UnifiedNotifications.instance.show(
+      await Unify.notifications.show(
         'Test Notification',
         body: 'This notification works on all platforms! 🎉',
-        data: {'test': 'true', 'timestamp': DateTime.now().toIso8601String()},
+        data: {
+          'test': 'true',
+          'timestamp': DateTime.now().toIso8601String(),
+        },
         actions: [
           NotificationAction(id: 'reply', title: 'Reply'),
           NotificationAction(id: 'dismiss', title: 'Dismiss'),
@@ -407,91 +361,62 @@ class _UnifiedHomePageState extends State<UnifiedHomePage> {
 
   Future<void> _testStorage() async {
     try {
-      _addLog('Testing storage...');
-
-      final testData = {
-        'timestamp': DateTime.now().toIso8601String(),
-        'user': _currentUser?.email ?? 'anonymous',
-        'platform': PlatformDetector.isWeb
-            ? 'web'
-            : PlatformDetector.isMobile
-                ? 'mobile'
-                : 'desktop',
-        'test_number': DateTime.now().millisecondsSinceEpoch % 1000,
-      };
-
-      await UnifiedStorage.instance.setJson('test_data', testData);
-      final retrieved = await UnifiedStorage.instance.getJson('test_data');
-
-      _addLog('✅ Storage test completed: ${retrieved?['test_number']}');
+      _addLog('Testing files/storage...');
+      final testData = 'Test data at ${DateTime.now().toIso8601String()}';
+      
+      // Use the files module for basic storage operations
+      final success = await Unify.files.setString('test_key', testData);
+      if (success) {
+        final retrievedData = await Unify.files.getString('test_key');
+        if (retrievedData != null) {
+          _addLog('✅ File storage test completed successfully');
+        } else {
+          _addLog('❌ File read returned null');
+        }
+      } else {
+        _addLog('❌ File write failed');
+      }
     } catch (e) {
       _addLog('❌ Storage error: $e');
     }
   }
 
-  Future<void> _testMedia() async {
+  Future<void> _testSystem() async {
     try {
-      _addLog('Testing media access...');
-
-      if (UnifiedMedia.instance.isFeatureSupported('file_picker')) {
-        final result = await UnifiedMedia.instance.pickFiles(
-          FilePickerOptions(
-            allowedTypes: [MediaType.image],
-            allowMultiple: false,
-          ),
-        );
-
-        if (result.success && result.files?.isNotEmpty == true) {
-          _addLog('✅ File picked: ${result.files!.first.name}');
+      _addLog('Testing system clipboard...');
+      // Test clipboard functionality
+      final testText = 'Unify clipboard test ${DateTime.now().millisecondsSinceEpoch}';
+      final success = await Unify.system.clipboardWriteText(testText);
+      
+      if (success) {
+        final clipboardText = await Unify.system.clipboardReadText();
+        if (clipboardText == testText) {
+          _addLog('✅ Clipboard test successful');
         } else {
-          _addLog('📁 No file selected');
+          _addLog('❌ Clipboard read mismatch');
         }
       } else {
-        _addLog('📱 File picker not available on this platform');
+        _addLog('❌ Clipboard write failed');
       }
     } catch (e) {
-      _addLog('❌ Media error: $e');
+      _addLog('❌ System test error: $e');
     }
   }
 
   Future<void> _testNetworking() async {
     try {
       _addLog('Testing network request...');
-
-      final response = await UnifiedNetworking.instance.get(
+      final response = await Unify.networking.get(
         'https://jsonplaceholder.typicode.com/posts/1',
       );
-
       if (response.isSuccess) {
-        final data = response.getData<Map<String, dynamic>>();
-        _addLog(
-            '✅ Network request successful: ${data?['title']?.toString().substring(0, 30)}...');
+        final data = response.asJson;
+        _addLog('✅ Network request successful: ${data?['title']?.toString().substring(0, 30)}...');
       } else {
         _addLog('❌ Network error: ${response.error}');
       }
     } catch (e) {
       _addLog('❌ Network exception: $e');
-    }
-  }
-
-  Future<void> _testBackgroundServices() async {
-    try {
-      _addLog('Testing background services...');
-
-      final activeTasks = UnifiedBackgroundServices.instance.getActiveTasks();
-      _addLog('📋 Active background tasks: ${activeTasks.length}');
-
-      // Execute demo task immediately for testing
-      final result = await UnifiedBackgroundServices.instance
-          .executeTaskImmediately('demo_notifications');
-
-      if (result.result == TaskResult.success) {
-        _addLog('✅ Background task executed successfully');
-      } else {
-        _addLog('❌ Background task failed: ${result.error}');
-      }
-    } catch (e) {
-      _addLog('❌ Background services error: $e');
     }
   }
 }

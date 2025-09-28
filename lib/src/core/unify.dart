@@ -80,7 +80,10 @@ class Unify {
       // Initialize modules
       try {
         _auth = UnifiedAuth.instance;
-        results['auth'] = await _auth!.initialize(authAdapter);
+        if (authAdapter != null) {
+          _auth!.setAdapter(authAdapter);
+        }
+        results['auth'] = await _auth!.initialize(_config!.authConfig);
       } catch (e) {
         results['auth'] = false;
         if (kDebugMode) print('Unify: Auth init error: $e');
@@ -179,7 +182,7 @@ class Unify {
 
   /// Register adapters
   static void registerAuthAdapter(AuthAdapter adapter) =>
-      _auth?.registerAdapter(adapter);
+      _auth?.setAdapter(adapter);
   static void registerNetworkingAdapter(NetworkingAdapter adapter) =>
       _networking?.registerAdapter(adapter);
   static void registerFilesAdapter(FilesAdapter adapter) =>

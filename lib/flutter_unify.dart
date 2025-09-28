@@ -94,7 +94,7 @@ export 'src/core/unify.dart';
 export 'src/core/config/unify_config.dart';
 
 // Unified modules - Reactive APIs for everything
-export 'src/core/auth/unified_auth.dart' hide AuthResult, AuthProvider;
+export 'src/core/auth/unified_auth.dart';
 export 'src/core/files/unified_files.dart';
 export 'src/core/networking/unified_networking.dart'
     hide MockWebSocketConnection;
@@ -110,6 +110,12 @@ export 'src/models/system_models.dart' hide Size;
 export 'src/models/storage_models.dart' hide UploadProgress, DownloadProgress;
 export 'src/models/networking_models.dart';
 
+// Common utilities
+export 'src/common/platform_detector.dart';
+
 // Legacy unified APIs - for backward compatibility
 export 'src/unified/notifications.dart';
 export 'src/unified/system.dart';
+export 'src/unified/storage.dart' hide StorageConfig, StorageInfo;
+export 'src/unified/media.dart' hide DeviceInfo;
+export 'src/unified/background_services.dart';

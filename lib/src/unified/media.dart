@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import '../common/platform_detector.dart';
 import '../common/event_emitter.dart';

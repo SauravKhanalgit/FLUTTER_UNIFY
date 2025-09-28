@@ -41,10 +41,9 @@
 /// ```
 
 import 'dart:async';
-import 'dart:convert';
 import 'dart:typed_data';
-import '../models/networking_models.dart';
-import '../adapters/networking_adapter.dart';
+
+import 'package:flutter_unify/flutter_unify.dart';
 
 /// Unified networking and connectivity API
 ///
@@ -69,7 +68,7 @@ class UnifiedNetworking {
 
   final List<NetworkRequest> _offlineQueue = [];
   bool _isOnline = true;
-  ConnectivityStatus _currentStatus = const ConnectivityStatus(
+  ConnectivityStatus _currentStatus = ConnectivityStatus(
     type: ConnectivityType.unknown,
     isConnected: false,
   );
@@ -116,7 +115,7 @@ class UnifiedNetworking {
   /// Check current connectivity
   Future<ConnectivityStatus> checkConnectivity() async {
     if (_adapter == null) {
-      return const ConnectivityStatus(
+      return ConnectivityStatus(
         type: ConnectivityType.unknown,
         isConnected: false,
       );
@@ -463,7 +462,7 @@ class UnifiedNetworking {
   /// Get network statistics
   Future<NetworkStatistics> getStatistics() async {
     if (_adapter == null) {
-      return const NetworkStatistics(
+      return NetworkStatistics(
         totalRequests: 0,
         successfulRequests: 0,
         failedRequests: 0,
@@ -569,7 +568,7 @@ class DefaultNetworkingAdapter extends NetworkingAdapter {
 
   @override
   Stream<ConnectivityStatus> get onConnectivityChanged => Stream.value(
-        const ConnectivityStatus(
+        ConnectivityStatus(
           type: ConnectivityType.wifi,
           isConnected: true,
         ),
@@ -577,7 +576,7 @@ class DefaultNetworkingAdapter extends NetworkingAdapter {
 
   @override
   Future<ConnectivityStatus> checkConnectivity() async {
-    return const ConnectivityStatus(
+    return ConnectivityStatus(
       type: ConnectivityType.wifi,
       isConnected: true,
     );
@@ -710,7 +709,7 @@ class DefaultNetworkingAdapter extends NetworkingAdapter {
 
   @override
   Future<NetworkStatistics> getStatistics() async {
-    return const NetworkStatistics(
+    return NetworkStatistics(
       totalRequests: 0,
       successfulRequests: 0,
       failedRequests: 0,
