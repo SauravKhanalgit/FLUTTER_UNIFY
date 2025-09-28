@@ -228,8 +228,8 @@ class _UnifiedHomePageState extends State<UnifiedHomePage> {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                feature.color.withOpacity(0.1),
-                feature.color.withOpacity(0.05),
+                feature.color.withValues(alpha: 0.1),
+                feature.color.withValues(alpha: 0.05),
               ],
             ),
           ),
