@@ -87,19 +87,9 @@ executables:
 topics:
   - cross-platform
   - unified-api
-  - authentication
-  - notifications
-  - storage
-  - networking
-  - desktop
-  - mobile
-  - web
-  - developer-tools
   - reactive-programming
   - plugin-architecture
-  - adapter-pattern
-  - streams
-  - offline-first
+  - developer-tools
 
 screenshots:
   - description: 'Flutter Unify Demo App showcasing all unified APIs'
