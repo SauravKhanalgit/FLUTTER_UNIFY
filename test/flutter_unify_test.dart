@@ -1,1 +1,39 @@
-import 'package:flutter_test/flutter_test.dart';import 'package:flutter_unify/flutter_unify.dart';void main() {  group('Flutter Unify Basic Tests', () {    test('should be able to import the library', () {      expect(Unify, isNotNull);    });    test('should have auth module', () {      expect(Unify.auth, isNotNull);    });    test('should have networking module', () {      expect(Unify.networking, isNotNull);    });    test('should have files module', () {      expect(Unify.files, isNotNull);    });    test('should have system module', () {      expect(Unify.system, isNotNull);    });    test('should have notifications module', () {      expect(Unify.notifications, isNotNull);    });  });  group('UnifyConfig Tests', () {    test('should create default config', () {      final config = UnifyConfig();      expect(config, isNotNull);    });    test('should create config with custom values', () {      final config = UnifyConfig(        enableOfflineSync: true,        enableAnalytics: false,      );      expect(config.enableOfflineSync, isTrue);      expect(config.enableAnalytics, isFalse);    });  });}
+import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_unify/flutter_unify.dart';
+
+void main() {
+  group('Flutter Unify Basic Tests', () {
+    test('should be able to import the library', () {
+      expect(Unify, isNotNull);
+    });
+    test('should have auth module', () {
+      expect(Unify.auth, isNotNull);
+    });
+    test('should have networking module', () {
+      expect(Unify.networking, isNotNull);
+    });
+    test('should have files module', () {
+      expect(Unify.files, isNotNull);
+    });
+    test('should have system module', () {
+      expect(Unify.system, isNotNull);
+    });
+    test('should have notifications module', () {
+      expect(Unify.notifications, isNotNull);
+    });
+  });
+  group('UnifyConfig Tests', () {
+    test('should create default config', () {
+      final config = UnifyConfig();
+      expect(config, isNotNull);
+    });
+    test('should create config with custom values', () {
+      final config = UnifyConfig(
+        enableOfflineSync: true,
+        enableAnalytics: false,
+      );
+      expect(config.enableOfflineSync, isTrue);
+      expect(config.enableAnalytics, isFalse);
+    });
+  });
+}

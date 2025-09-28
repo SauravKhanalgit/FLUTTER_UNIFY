@@ -3,10 +3,10 @@ import 'package:flutter_unify/flutter_unify.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Initialize the unified framework
   await _initializeUnifiedServices();
-  
+
   runApp(UnifiedDemoApp());
 }
 
@@ -67,8 +67,10 @@ class _UnifiedHomePageState extends State<UnifiedHomePage> {
     // Connectivity changes - using the correct API
     try {
       Unify.networking.onConnectivityChanged.listen((status) {
-        setState(() => _connectivity = status.isConnected ? 'Online' : 'Offline');
-        _addLog('Network: ${status.isConnected ? 'Connected' : 'Disconnected'}');
+        setState(
+            () => _connectivity = status.isConnected ? 'Online' : 'Offline');
+        _addLog(
+            'Network: ${status.isConnected ? 'Connected' : 'Disconnected'}');
       });
     } catch (e) {
       _addLog('Network listener error: $e');
@@ -77,7 +79,8 @@ class _UnifiedHomePageState extends State<UnifiedHomePage> {
 
   void _addLog(String message) {
     setState(() {
-      _logs.insert(0, '${DateTime.now().toLocal().toString().substring(11, 19)}: $message');
+      _logs.insert(0,
+          '${DateTime.now().toLocal().toString().substring(11, 19)}: $message');
       if (_logs.length > 10) _logs.removeLast();
     });
   }
@@ -126,7 +129,8 @@ class _UnifiedHomePageState extends State<UnifiedHomePage> {
                 Container(
                   padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: _connectivity == 'Online' ? Colors.green : Colors.red,
+                    color:
+                        _connectivity == 'Online' ? Colors.green : Colors.red,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
@@ -305,7 +309,8 @@ class _UnifiedHomePageState extends State<UnifiedHomePage> {
                           padding: EdgeInsets.symmetric(vertical: 2),
                           child: Text(
                             _logs[index],
-                            style: TextStyle(fontSize: 12, fontFamily: 'monospace'),
+                            style: TextStyle(
+                                fontSize: 12, fontFamily: 'monospace'),
                           ),
                         );
                       },
@@ -363,7 +368,7 @@ class _UnifiedHomePageState extends State<UnifiedHomePage> {
     try {
       _addLog('Testing files/storage...');
       final testData = 'Test data at ${DateTime.now().toIso8601String()}';
-      
+
       // Use the files module for basic storage operations
       final success = await Unify.files.setString('test_key', testData);
       if (success) {
@@ -385,9 +390,10 @@ class _UnifiedHomePageState extends State<UnifiedHomePage> {
     try {
       _addLog('Testing system clipboard...');
       // Test clipboard functionality
-      final testText = 'Unify clipboard test ${DateTime.now().millisecondsSinceEpoch}';
+      final testText =
+          'Unify clipboard test ${DateTime.now().millisecondsSinceEpoch}';
       final success = await Unify.system.clipboardWriteText(testText);
-      
+
       if (success) {
         final clipboardText = await Unify.system.clipboardReadText();
         if (clipboardText == testText) {
@@ -411,7 +417,8 @@ class _UnifiedHomePageState extends State<UnifiedHomePage> {
       );
       if (response.isSuccess) {
         final data = response.asJson;
-        _addLog('✅ Network request successful: ${data?['title']?.toString().substring(0, 30)}...');
+        _addLog(
+            '✅ Network request successful: ${data?['title']?.toString().substring(0, 30)}...');
       } else {
         _addLog('❌ Network error: ${response.error}');
       }
