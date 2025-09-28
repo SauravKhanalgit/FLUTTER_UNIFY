@@ -1,0 +1,111 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.buildlog/
+.history
+.svn/
+migrate_working_dir/
+
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# The .vscode folder contains launch configuration and tasks you configure in
+# VS Code which you may wish to be included in version control, so this line
+# is commented out by default.
+#.vscode/
+
+# Flutter/Dart/Pub related
+**/doc/api/
+**/ios/Flutter/.last_build_id
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+/build/
+
+# Symbolication related
+app.*.symbols
+
+# Obfuscation related
+app.*.map.json
+
+# Android Studio will place build artifacts here
+/android/app/debug
+/android/app/profile
+/android/app/release
+
+# Coverage files
+coverage/
+*.lcov
+*.info
+
+# Test coverage VM files
+coverage/test/
+**/*.vm.json
+
+# Build outputs
+/build/
+/dist/
+*.tar.gz
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# IDE specific files
+.vscode/settings.json
+.vscode/launch.json
+*.code-workspace
+
+# OS generated files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Package specific
+pubspec.lock
+
+# Generated files
+*.g.dart
+*.freezed.dart
+*.gr.dart
+*.config.dart
+
+# Firebase config (if using Firebase)
+**/ios/firebase_app_id_file.json
+**/ios/Runner/GoogleService-Info.plist
+**/android/app/google-services.json
+
+# Analysis and lint cache
+.dart_tool/analysis_server/
+analysis_options_*.yaml
+
+# Documentation build
+/doc/api/
+
+# Screenshots (keeping placeholder files but ignoring actual screenshots)
+screenshots/*.jpg
+screenshots/*.jpeg
+screenshots/*.png
+!screenshots/demo-app.png
+!screenshots/api-examples.png
+
+# Backup files
+*.bak
+*.backup
+*~
+
+# Log files
+*.log
+logs/
