@@ -1,311 +1,511 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_unify/flutter_unify.dart';
 
-void main() {
-  runApp(const MyApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize core unified services
+  await _initializeUnifiedServices();
+
+  runApp(UnifiedDemoApp());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({Key? key}) : super(key: key);
+Future<void> _initializeUnifiedServices() async {
+  try {
+    await Future.wait([
+      UnifiedNotifications.instance.initialize(),
+      UnifiedStorage.instance.initialize(),
+      UnifiedAuth.instance.initialize(),
+      UnifiedMedia.instance.initialize(),
+      UnifiedNetworking.instance.initialize(),
+      UnifiedBackgroundServices.instance.initialize(),
+    ]);
+    print('✅ All unified services initialized successfully');
+  } catch (e) {
+    print('❌ Failed to initialize services: $e');
+  }
+}
 
+class UnifiedDemoApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Unify Demo',
+      title: 'Flutter Unify - Best in Class Demo',
       theme: ThemeData(
         primarySwatch: Colors.blue,
-        useMaterial3: true,
+        visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
-      home: const HomePage(),
+      home: UnifiedHomePage(),
     );
   }
 }
 
-class HomePage extends StatefulWidget {
-  const HomePage({Key? key}) : super(key: key);
-
+class UnifiedHomePage extends StatefulWidget {
   @override
-  State<HomePage> createState() => _HomePageState();
+  _UnifiedHomePageState createState() => _UnifiedHomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
-  String _systemInfo = 'Loading...';
-  bool _isUnifyInitialized = false;
+class _UnifiedHomePageState extends State<UnifiedHomePage> {
+  UnifiedUser? _currentUser;
+  ConnectivityStatus _connectivity = ConnectivityStatus.none;
+  List<String> _logs = [];
 
   @override
   void initState() {
     super.initState();
-    _initializeUnify();
+    _setupListeners();
+    _scheduleBackgroundTasks();
   }
 
-  Future<void> _initializeUnify() async {
-    try {
-      // Initialize Flutter Unify
-      await Unify.initialize();
+  void _setupListeners() {
+    // Auth state changes
+    UnifiedAuth.instance.authStateChanges.listen((user) {
+      setState(() => _currentUser = user);
+      _addLog('Auth: ${user?.email ?? 'Signed out'}');
+    });
 
-      // Get system information
-      final info = Unify.getRuntimeInfo();
+    // Connectivity changes
+    UnifiedNetworking.instance.connectivityStream.listen((status) {
+      setState(() => _connectivity = status);
+      _addLog('Network: ${status.name}');
+    });
 
-      setState(() {
-        _isUnifyInitialized = true;
-        _systemInfo = '''
-Platform: ${info['platform']}
-Is Web: ${info['isWeb']}
-Is Desktop: ${info['isDesktop']}  
-Is Mobile: ${info['isMobile']}
-Initialized: ${info['isInitialized']}
-        ''';
-      });
-    } catch (e) {
-      setState(() {
-        _systemInfo = 'Error initializing Unify: $e';
-      });
-    }
+    // Notification taps
+    UnifiedNotifications.instance.on('notification-tapped', (data) {
+      _addLog('Notification tapped: ${data['title']}');
+    });
   }
 
-  Future<void> _testClipboard() async {
-    if (!_isUnifyInitialized) return;
-
-    try {
-      // Test clipboard operations
-      await Unify.system.clipboardWriteText('Hello from Flutter Unify!');
-
-      final clipboardText = await Unify.system.clipboardReadText();
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Clipboard: $clipboardText'),
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Clipboard error: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
+  void _addLog(String message) {
+    setState(() {
+      _logs.insert(0,
+          '${DateTime.now().toLocal().toString().substring(11, 19)}: $message');
+      if (_logs.length > 10) _logs.removeLast();
+    });
   }
 
-  Future<void> _testNotification() async {
-    if (!_isUnifyInitialized) return;
-
+  Future<void> _scheduleBackgroundTasks() async {
     try {
-      // Test notification
-      await Unify.system.showNotification(
-        title: 'Flutter Unify Test',
-        body: 'This is a test notification from Flutter Unify!',
+      // Register notification handler
+      UnifiedBackgroundServices.instance.registerTaskHandler(
+        'demo_notifications',
+        (context) async {
+          await UnifiedNotifications.instance.show(
+            'Background Task',
+            body: 'This notification was sent from a background task! 🚀',
+            data: {
+              'source': 'background',
+              'timestamp': DateTime.now().toIso8601String()
+            },
+          );
+          return TaskExecutionResult.success();
+        },
       );
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Notification error: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
 
-  void _onFilesDropped(List<String> files) {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Files dropped: ${files.join(', ')}'),
+      // Schedule periodic notifications (every 2 minutes for demo)
+      await UnifiedBackgroundServices.instance.scheduleTask(
+        BackgroundTaskConfig(
+          id: 'demo_notifications',
+          name: 'Demo Notifications',
+          type: BackgroundTaskType.periodic,
+          interval: Duration(minutes: 2),
+          constraints: {},
+          persistAcrossReboot: false,
         ),
       );
+
+      _addLog('Background tasks scheduled');
+    } catch (e) {
+      _addLog('Background task error: $e');
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return UnifiedScaffold(
+    return Scaffold(
       appBar: AppBar(
-        title: const Text('Flutter Unify Demo'),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        title: Text('Flutter Unify - Best in Class'),
+        backgroundColor: Colors.blue[600],
+        elevation: 2,
+        actions: [
+          Container(
+            padding: EdgeInsets.symmetric(horizontal: 8),
+            child: Row(
+              children: [
+                Icon(
+                    _connectivity == ConnectivityStatus.none
+                        ? Icons.wifi_off
+                        : Icons.wifi,
+                    color: Colors.white),
+                SizedBox(width: 4),
+                Text(_connectivity.name,
+                    style: TextStyle(fontSize: 12, color: Colors.white)),
+              ],
+            ),
+          ),
+        ],
       ),
-      enableDragAndDrop: true,
-      onFilesDropped: _onFilesDropped,
-      showDesktopWindowControls: true,
-      windowTitle: 'Flutter Unify Demo',
-      enableWebOptimizations: true,
-      body: ResponsiveLayout(
-        mobile: _buildMobileLayout(),
-        tablet: _buildTabletLayout(),
-        desktop: _buildDesktopLayout(),
-      ),
-    );
-  }
-
-  Widget _buildMobileLayout() {
-    return _buildCommonLayout(isMobile: true);
-  }
-
-  Widget _buildTabletLayout() {
-    return _buildCommonLayout(isMobile: false);
-  }
-
-  Widget _buildDesktopLayout() {
-    return _buildCommonLayout(isMobile: false);
-  }
-
-  Widget _buildCommonLayout({required bool isMobile}) {
-    return Padding(
-      padding: EdgeInsets.all(isMobile ? 16.0 : 24.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      body: Column(
         children: [
-          SEOWidget(
-            title: 'Flutter Unify Demo',
-            description:
-                'A demonstration of Flutter Unify - unified API for Mobile, Web, and Desktop',
-            keywords: 'flutter, unify, cross-platform, mobile, web, desktop',
-            child: const SizedBox.shrink(),
+          // Status bar
+          Container(
+            width: double.infinity,
+            padding: EdgeInsets.all(12),
+            color: Colors.grey[100],
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    _currentUser != null
+                        ? '👤 ${_currentUser!.displayName ?? _currentUser!.email}'
+                        : '👤 Not signed in',
+                    style: TextStyle(fontWeight: FontWeight.w500),
+                  ),
+                ),
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: _connectivity != ConnectivityStatus.none
+                        ? Colors.green
+                        : Colors.red,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    _connectivity != ConnectivityStatus.none
+                        ? 'Online'
+                        : 'Offline',
+                    style: TextStyle(color: Colors.white, fontSize: 12),
+                  ),
+                ),
+              ],
+            ),
           ),
-          const SEOHeading.h1('Flutter Unify Demo'),
-          const SizedBox(height: 16),
-          const SEOParagraph(
-            text:
-                'Flutter Unify provides one unified layer for Flutter apps across Mobile, Web, and Desktop platforms.',
-          ),
-          const SizedBox(height: 24),
 
-          // System Information Card
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
+          // Main content
+          Expanded(
+            child: SingleChildScrollView(
+              padding: EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'System Information',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
                   Text(
-                    _systemInfo,
-                    style: const TextStyle(fontFamily: 'monospace'),
+                    '🔥 Best in Class Features',
+                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                   ),
+                  SizedBox(height: 8),
+                  Text(
+                    'Tap any card to test the unified APIs across all platforms',
+                    style: TextStyle(color: Colors.grey[600]),
+                  ),
+                  SizedBox(height: 20),
+
+                  // Feature cards
+                  _buildFeatureGrid(),
+
+                  SizedBox(height: 20),
+
+                  // Logs section
+                  _buildLogsSection(),
                 ],
               ),
             ),
           ),
-
-          const SizedBox(height: 24),
-
-          // Action Buttons
-          Wrap(
-            spacing: 16,
-            runSpacing: 16,
-            children: [
-              ElevatedButton.icon(
-                onPressed: _isUnifyInitialized ? _testClipboard : null,
-                icon: const Icon(Icons.content_copy),
-                label: const Text('Test Clipboard'),
-              ),
-              ElevatedButton.icon(
-                onPressed: _isUnifyInitialized ? _testNotification : null,
-                icon: const Icon(Icons.notifications),
-                label: const Text('Test Notification'),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 24),
-
-          // Platform-Specific Features
-          PlatformBuilder(
-            builder: (context, platform) {
-              return Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Platform-Specific Features',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      if (platform.isDesktop) ...[
-                        const Text('✓ System Tray Support'),
-                        const Text('✓ Window Management'),
-                        const Text('✓ Global Shortcuts'),
-                        const Text('✓ Drag & Drop Files'),
-                      ],
-                      if (platform.isWeb) ...[
-                        const Text('✓ SEO Optimization'),
-                        const Text('✓ Progressive Loading'),
-                        const Text('✓ Web Polyfills'),
-                        const Text('✓ Smart Bundling'),
-                      ],
-                      if (platform.isMobile) ...[
-                        const Text('✓ Native Bridge'),
-                        const Text('✓ Device Information'),
-                        const Text('✓ Mobile Services'),
-                        const Text('✓ Biometric Authentication'),
-                      ],
-                      const SizedBox(height: 8),
-                      Text(
-                        'Screen Size: ${platform.screenSize.width.toInt()} x ${platform.screenSize.height.toInt()}',
-                        style:
-                            const TextStyle(fontSize: 12, color: Colors.grey),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
-
-          const SizedBox(height: 24),
-
-          // Drop Zone
-          if (PlatformDetector.isDesktop)
-            DropTarget(
-              onDropFiles: _onFilesDropped,
-              highlightOnDragOver: true,
-              child: Container(
-                width: double.infinity,
-                height: 100,
-                decoration: BoxDecoration(
-                  border: Border.all(
-                    color: Colors.grey,
-                    style: BorderStyle.solid,
-                    width: 2,
-                  ),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Center(
-                  child: Text(
-                    'Drop files here (Desktop only)',
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: Colors.grey,
-                    ),
-                  ),
-                ),
-              ),
-            ),
         ],
       ),
     );
   }
 
-  @override
-  void dispose() {
-    Unify.dispose();
-    super.dispose();
+  Widget _buildFeatureGrid() {
+    final features = [
+      FeatureCard(
+        title: '🔐 Authentication',
+        subtitle: 'OAuth, WebAuthn, Biometrics',
+        color: Colors.purple,
+        onTap: _testAuth,
+      ),
+      FeatureCard(
+        title: '📱 Notifications',
+        subtitle: 'Cross-platform notifications',
+        color: Colors.orange,
+        onTap: _testNotifications,
+      ),
+      FeatureCard(
+        title: '💾 Storage',
+        subtitle: 'Unified storage API',
+        color: Colors.green,
+        onTap: _testStorage,
+      ),
+      FeatureCard(
+        title: '📸 Media',
+        subtitle: 'Camera, files, device access',
+        color: Colors.red,
+        onTap: _testMedia,
+      ),
+      FeatureCard(
+        title: '🌐 Networking',
+        subtitle: 'HTTP, WebSocket, offline queue',
+        color: Colors.blue,
+        onTap: _testNetworking,
+      ),
+      FeatureCard(
+        title: '⚙️ Background',
+        subtitle: 'Cross-platform background tasks',
+        color: Colors.teal,
+        onTap: _testBackgroundServices,
+      ),
+    ];
+
+    return GridView.count(
+      shrinkWrap: true,
+      physics: NeverScrollableScrollPhysics(),
+      crossAxisCount: 2,
+      crossAxisSpacing: 12,
+      mainAxisSpacing: 12,
+      childAspectRatio: 1.2,
+      children: features.map((feature) => _buildFeatureCard(feature)).toList(),
+    );
   }
+
+  Widget _buildFeatureCard(FeatureCard feature) {
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: InkWell(
+        onTap: feature.onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                feature.color.withOpacity(0.1),
+                feature.color.withOpacity(0.05),
+              ],
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                feature.title,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: feature.color,
+                ),
+              ),
+              SizedBox(height: 8),
+              Text(
+                feature.subtitle,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.grey[600],
+                ),
+              ),
+              Spacer(),
+              Align(
+                alignment: Alignment.bottomRight,
+                child: Icon(
+                  Icons.arrow_forward_ios,
+                  size: 16,
+                  color: feature.color,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLogsSection() {
+    return Card(
+      child: Padding(
+        padding: EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Text('📋 Activity Log',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
+                Spacer(),
+                TextButton(
+                  onPressed: () => setState(() => _logs.clear()),
+                  child: Text('Clear'),
+                ),
+              ],
+            ),
+            SizedBox(height: 8),
+            Container(
+              height: 120,
+              child: _logs.isEmpty
+                  ? Center(
+                      child: Text('No activity yet',
+                          style: TextStyle(color: Colors.grey)))
+                  : ListView.builder(
+                      itemCount: _logs.length,
+                      itemBuilder: (context, index) {
+                        return Padding(
+                          padding: EdgeInsets.symmetric(vertical: 2),
+                          child: Text(
+                            _logs[index],
+                            style: TextStyle(
+                                fontSize: 12, fontFamily: 'monospace'),
+                          ),
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Test methods
+  Future<void> _testAuth() async {
+    try {
+      if (_currentUser == null) {
+        _addLog('Testing authentication...');
+        final result = await UnifiedAuth.instance.signInAnonymously();
+        if (result.success) {
+          _addLog('✅ Anonymous sign in successful');
+        } else {
+          _addLog('❌ Auth failed: ${result.error}');
+        }
+      } else {
+        _addLog('Signing out...');
+        await UnifiedAuth.instance.signOut();
+        _addLog('✅ Signed out successfully');
+      }
+    } catch (e) {
+      _addLog('❌ Auth error: $e');
+    }
+  }
+
+  Future<void> _testNotifications() async {
+    try {
+      _addLog('Sending notification...');
+      await UnifiedNotifications.instance.show(
+        'Test Notification',
+        body: 'This notification works on all platforms! 🎉',
+        data: {'test': 'true', 'timestamp': DateTime.now().toIso8601String()},
+        actions: [
+          NotificationAction(id: 'reply', title: 'Reply'),
+          NotificationAction(id: 'dismiss', title: 'Dismiss'),
+        ],
+      );
+      _addLog('✅ Notification sent');
+    } catch (e) {
+      _addLog('❌ Notification error: $e');
+    }
+  }
+
+  Future<void> _testStorage() async {
+    try {
+      _addLog('Testing storage...');
+
+      final testData = {
+        'timestamp': DateTime.now().toIso8601String(),
+        'user': _currentUser?.email ?? 'anonymous',
+        'platform': PlatformDetector.isWeb
+            ? 'web'
+            : PlatformDetector.isMobile
+                ? 'mobile'
+                : 'desktop',
+        'test_number': DateTime.now().millisecondsSinceEpoch % 1000,
+      };
+
+      await UnifiedStorage.instance.setJson('test_data', testData);
+      final retrieved = await UnifiedStorage.instance.getJson('test_data');
+
+      _addLog('✅ Storage test completed: ${retrieved?['test_number']}');
+    } catch (e) {
+      _addLog('❌ Storage error: $e');
+    }
+  }
+
+  Future<void> _testMedia() async {
+    try {
+      _addLog('Testing media access...');
+
+      if (UnifiedMedia.instance.isFeatureSupported('file_picker')) {
+        final result = await UnifiedMedia.instance.pickFiles(
+          FilePickerOptions(
+            allowedTypes: [MediaType.image],
+            allowMultiple: false,
+          ),
+        );
+
+        if (result.success && result.files?.isNotEmpty == true) {
+          _addLog('✅ File picked: ${result.files!.first.name}');
+        } else {
+          _addLog('📁 No file selected');
+        }
+      } else {
+        _addLog('📱 File picker not available on this platform');
+      }
+    } catch (e) {
+      _addLog('❌ Media error: $e');
+    }
+  }
+
+  Future<void> _testNetworking() async {
+    try {
+      _addLog('Testing network request...');
+
+      final response = await UnifiedNetworking.instance.get(
+        'https://jsonplaceholder.typicode.com/posts/1',
+      );
+
+      if (response.isSuccess) {
+        final data = response.getData<Map<String, dynamic>>();
+        _addLog(
+            '✅ Network request successful: ${data?['title']?.toString().substring(0, 30)}...');
+      } else {
+        _addLog('❌ Network error: ${response.error}');
+      }
+    } catch (e) {
+      _addLog('❌ Network exception: $e');
+    }
+  }
+
+  Future<void> _testBackgroundServices() async {
+    try {
+      _addLog('Testing background services...');
+
+      final activeTasks = UnifiedBackgroundServices.instance.getActiveTasks();
+      _addLog('📋 Active background tasks: ${activeTasks.length}');
+
+      // Execute demo task immediately for testing
+      final result = await UnifiedBackgroundServices.instance
+          .executeTaskImmediately('demo_notifications');
+
+      if (result.result == TaskResult.success) {
+        _addLog('✅ Background task executed successfully');
+      } else {
+        _addLog('❌ Background task failed: ${result.error}');
+      }
+    } catch (e) {
+      _addLog('❌ Background services error: $e');
+    }
+  }
+}
+
+class FeatureCard {
+  final String title;
+  final String subtitle;
+  final Color color;
+  final VoidCallback onTap;
+
+  FeatureCard({
+    required this.title,
+    required this.subtitle,
+    required this.color,
+    required this.onTap,
+  });
 }
