@@ -1,6 +1,6 @@
 name: flutter_unify
-description: The ultimate unified API for cross-platform Flutter development. One API, all platforms - legendary developer experience with reactive streams, pluggable adapters, and best-in-class DX.
-version: 1.0.1
+description: Unified API for cross-platform Flutter development. One API for all platforms with reactive streams and pluggable adapters.
+version: 1.0.2
 homepage: https://github.com/sauravkhanalgit/flutter_unify
 repository: https://github.com/sauravkhanalgit/flutter_unify
 issue_tracker: https://github.com/sauravkhanalgit/flutter_unify/issues
@@ -17,35 +17,35 @@ dependencies:
     sdk: flutter
   
   # Core dependencies for unified APIs
-  connectivity_plus: ^5.0.0
-  device_info_plus: ^9.0.0
-  package_info_plus: ^4.0.0
-  shared_preferences: ^2.0.0
-  path_provider: ^2.0.0
+  connectivity_plus: ^6.0.1
+  device_info_plus: ^9.1.0
+  package_info_plus: ^4.2.0
+  shared_preferences: ^2.2.2
+  path_provider: ^2.1.1
   
   # Authentication
-  local_auth: ^2.1.0
-  crypto: ^3.0.0
+  local_auth: ^2.2.0
+  crypto: ^3.0.3
   
   # Networking
-  dio: ^5.0.0
+  dio: ^5.4.0
   
   # Notifications
-  flutter_local_notifications: ^15.0.0
+  flutter_local_notifications: ^17.0.0
   
   # Storage & Files
-  sqflite: ^2.0.0
+  sqflite: ^2.3.2
   hive_flutter: ^1.1.0
   
   # Media
-  camera: ^0.10.0
-  image_picker: ^1.0.0
+  camera: ^0.11.0+1
+  image_picker: ^1.2.0
   
   # Desktop integration
-  window_manager: ^0.3.0
+  window_manager: ^0.3.7
   
   # Web-specific
-  universal_html: ^2.2.0
+  universal_html: ^2.2.4
   
   # Base dependencies
   web: ^1.1.1
@@ -57,11 +57,11 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^4.0.0
-  build_runner: ^2.4.0
-  json_annotation: ^4.8.0
-  json_serializable: ^6.6.0
-  test: ^1.25.0
-  mockito: ^5.4.0
+  build_runner: ^2.4.8
+  json_annotation: ^4.8.1
+  json_serializable: ^6.7.1
+  test: ^1.25.1
+  mockito: ^5.4.4
 
 flutter:
   plugin:
