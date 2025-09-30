@@ -24,6 +24,11 @@ class WebOptimizer extends EventEmitter {
   bool _seoEnabled = false;
   bool _progressiveLoadingEnabled = false;
   bool _polyfillsEnabled = false;
+  bool _pwaEnabled = false;
+  bool _ssrBridgeEnabled = false;
+  bool _webGpuProbeDone = false;
+  bool _webGpuSupported = false;
+  bool _wasmSimdSupported = false;
 
   /// Get the SEO renderer instance
   SEORenderer get seo => _seoRenderer;
@@ -43,6 +48,8 @@ class WebOptimizer extends EventEmitter {
     bool enableSEO = true,
     bool enableProgressiveLoading = false,
     bool enablePolyfills = true,
+    bool enablePwa = true,
+    bool enableSsrBridge = false,
   }) async {
     if (!kIsWeb) {
       throw UnsupportedError('WebOptimizer can only be used on web platforms');
@@ -59,6 +66,8 @@ class WebOptimizer extends EventEmitter {
     _seoEnabled = enableSEO;
     _progressiveLoadingEnabled = enableProgressiveLoading;
     _polyfillsEnabled = enablePolyfills;
+    _pwaEnabled = enablePwa;
+    _ssrBridgeEnabled = enableSsrBridge;
 
     // Initialize components
     if (_seoEnabled) {
@@ -80,6 +89,16 @@ class WebOptimizer extends EventEmitter {
       await _setupSmartBundling();
     }
 
+    if (_pwaEnabled) {
+      await _setupPwa();
+    }
+
+    if (_ssrBridgeEnabled) {
+      _setupSsrBridge();
+    }
+
+    await _probeAdvancedCapabilities();
+
     _isInitialized = true;
     emit('initialized');
 
@@ -88,7 +107,10 @@ class WebOptimizer extends EventEmitter {
           'SmartBundling: $_smartBundlingEnabled, '
           'SEO: $_seoEnabled, '
           'ProgressiveLoading: $_progressiveLoadingEnabled, '
-          'Polyfills: $_polyfillsEnabled');
+          'Polyfills: $_polyfillsEnabled, '
+          'PWA: $_pwaEnabled, '
+          'SSRBridge: $_ssrBridgeEnabled, '
+          'WebGPU: $_webGpuSupported');
     }
   }
 
@@ -235,5 +257,76 @@ class WebOptimizer extends EventEmitter {
 
     removeAllListeners();
     _isInitialized = false;
+  }
+
+  /// Setup PWA manifest and service worker
+  Future<void> _setupPwa() async {
+    try {
+      // Inject manifest link if missing
+      final existing = web.document.querySelector('link[rel="manifest"]');
+      if (existing == null) {
+        final link = web.HTMLLinkElement()
+          ..rel = 'manifest'
+          ..href = '/manifest.webmanifest';
+        web.document.head?.appendChild(link);
+      }
+      // Register service worker (already in smart bundling path) if not yet
+      if (!_smartBundlingEnabled) {
+        await _registerServiceWorker();
+      }
+      emit('pwa-ready');
+    } catch (e) {
+      if (kDebugMode) print('WebOptimizer: PWA setup failed: $e');
+    }
+  }
+
+  void injectStructuredData(Map<String, dynamic> jsonLd) {
+    try {
+      final script = web.HTMLScriptElement()
+        ..type = 'application/ld+json'
+        ..text = jsonLd.toString();
+      web.document.head?.appendChild(script);
+      emit('structured-data-injected');
+    } catch (e) {
+      if (kDebugMode) print('WebOptimizer: Structured data inject error: $e');
+    }
+  }
+
+  void _setupSsrBridge() {
+    // Placeholder: future integration with edge function / Node worker
+    emit('ssr-bridge-ready');
+  }
+
+  Future<void> _probeAdvancedCapabilities() async {
+    if (_webGpuProbeDone) return;
+    try {
+      // Basic WebGPU detection (guards for presence of navigator.gpu)
+      final nav = web.window.navigator as dynamic;
+      _webGpuSupported = nav != null && nav.gpu != null;
+    } catch (_) {
+      _webGpuSupported = false;
+    }
+    try {
+      // WASM SIMD detection experiment (placeholder)
+      _wasmSimdSupported = true; // Assume modern browsers; refine later
+    } catch (_) {
+      _wasmSimdSupported = false;
+    }
+    _webGpuProbeDone = true;
+    emit('advanced-capabilities-probed');
+  }
+
+  Map<String, dynamic> get advancedCapabilities => {
+        'webGpu': _webGpuSupported,
+        'wasmSimd': _wasmSimdSupported,
+        'ssrBridge': _ssrBridgeEnabled,
+        'pwa': _pwaEnabled,
+      };
+
+  void negotiatePolyfills(
+      {List<String> features = const ['Intl.Segmenter', 'URLPattern']}) {
+    if (!_polyfillsEnabled) return;
+    // Placeholder: runtime detection & dynamic import suggestions
+    emit('polyfill-negotiation');
   }
 }

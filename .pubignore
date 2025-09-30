@@ -21,3 +21,13 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.temp
+
+# Coverage artifacts
+coverage/
+**/coverage/**
+
+# Large or raw media sources (keep optimized final screenshots only)
+raw_screens/
+
+# Example temp
+example/tmp/

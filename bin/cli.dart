@@ -28,6 +28,10 @@
 
 import 'dart:io';
 import 'dart:async';
+import 'dart:convert'; // added for JSON output
+import '../lib/src/feature_flags/feature_flags.dart';
+import '../lib/src/ai/ai_suggester.dart';
+import '../lib/src/roadmap/phase_tracker.dart';
 
 void main(List<String> arguments) async {
   final cli = UnifyCLI();
@@ -44,6 +48,9 @@ class UnifyCLI {
     'init': InitCommand(),
     'doctor': DoctorCommand(),
     'upgrade': UpgradeCommand(),
+    'ai': AiCommand(),
+    'features': FeatureCommand(),
+    'roadmap': RoadmapCommand(),
   };
 
   Future<void> run(List<String> args) async {
@@ -239,7 +246,6 @@ flutter:
       Directory projectDir, String template, List<String> features) async {
     final imports = <String>[
       "import 'package:flutter/material.dart';",
-      "import 'package:flutter_unify/flutter_unify.dart';",
     ];
 
     final initCalls = <String>[];
@@ -1286,6 +1292,189 @@ class UpgradeCommand extends Command {
     } else {
       print('❌ Upgrade failed');
       print(result.stderr);
+    }
+  }
+}
+
+class AiCommand extends Command {
+  @override
+  Future<void> execute(List<String> args) async {
+    if (args.isEmpty || args.first == '--help') {
+      print(
+          '''\nAI Commands (experimental)\n  suggest adapter <type> [--json] [--apply]  Recommend adapter; optionally enable related feature flags\n  generate retry [--json]                    Show retry boilerplate snippet\n  generate auth [--json]                     Scaffold auth flow (placeholder)\n''');
+      return;
+    }
+
+    final jsonMode = args.contains('--json');
+    final applyFlags = args.contains('--apply');
+    final filtered =
+        args.where((a) => a != '--json' && a != '--apply').toList();
+
+    if (filtered.length >= 2 &&
+        filtered[0] == 'suggest' &&
+        filtered[1] == 'adapter') {
+      final type = filtered.length > 2 ? filtered[2] : 'unknown';
+      final suggestion = AiSuggester.instance.suggestAdapter(type);
+      final applied = <String>[];
+      if (applyFlags) {
+        // Map adapter domain to feature flags
+        final flags = UnifyFeatures.instance;
+        void enableIf(String key) {
+          if (flags.all().containsKey(key) && !flags.isEnabled(key)) {
+            flags.enable(key);
+            applied.add(key);
+          }
+        }
+
+        switch (type) {
+          case 'network':
+            enableIf('offline_networking');
+            enableIf('ai_adapter_recommendations');
+            break;
+          case 'auth':
+            enableIf('ai_adapter_recommendations');
+            break;
+          case 'storage':
+            enableIf('dynamic_feature_flags');
+            break;
+          default:
+            enableIf('ai_adapter_recommendations');
+        }
+      }
+      if (jsonMode) {
+        final out = {
+          'command': 'suggest_adapter',
+          'input': type,
+          'suggestion': {
+            'title': suggestion.title,
+            'rationale': suggestion.rationale,
+            'score': suggestion.score,
+            if (suggestion.meta != null) 'meta': suggestion.meta,
+          },
+          if (applyFlags) 'appliedFlags': applied,
+        };
+        print(jsonEncode(out));
+      } else {
+        print(
+            '🤖 Suggestion: ${suggestion.title}\nScore: ${(suggestion.score * 100).toStringAsFixed(1)}%');
+        print('Reason: ${suggestion.rationale}');
+        if (suggestion.meta != null) print('Meta: ${suggestion.meta}');
+        if (applyFlags) {
+          if (applied.isEmpty) {
+            print(
+                'No feature flags applied (already enabled or not available).');
+          } else {
+            print('Enabled feature flags: ${applied.join(', ')}');
+          }
+        }
+      }
+      return;
+    }
+
+    if (filtered.length >= 2 &&
+        filtered[0] == 'generate' &&
+        filtered[1] == 'retry') {
+      final snippet = AiSuggester.instance.generateRetryBoilerplate();
+      if (jsonMode) {
+        print(jsonEncode({
+          'command': 'generate_retry',
+          'lines': snippet,
+          'joined': snippet.join('\n')
+        }));
+      } else {
+        print('🔁 Retry boilerplate:');
+        for (final line in snippet) {
+          print(line);
+        }
+      }
+      return;
+    }
+
+    if (filtered[0] == 'generate' &&
+        filtered.length > 1 &&
+        filtered[1] == 'auth') {
+      if (jsonMode) {
+        print(jsonEncode({
+          'command': 'generate_auth',
+          'status': 'placeholder',
+          'message':
+              'Would scaffold auth flow with providers + biometric hooks.'
+        }));
+      } else {
+        print(
+            '🧪 (Experimental) Would scaffold auth flow with providers + biometric hooks.');
+      }
+      return;
+    }
+
+    if (jsonMode) {
+      print(jsonEncode({'error': 'unknown_command', 'args': filtered}));
+    } else {
+      print('Unknown AI command. Use: dart run flutter_unify:cli ai --help');
+    }
+  }
+}
+
+class FeatureCommand extends Command {
+  @override
+  Future<void> execute(List<String> args) async {
+    if (args.isEmpty) {
+      print('Feature flags:');
+      UnifyFeatures.instance
+          .all()
+          .forEach((k, v) => print(' - $k: ${v ? 'ON' : 'off'}'));
+      return;
+    }
+    if (args.length == 2 && (args[0] == 'enable' || args[0] == 'disable')) {
+      final key = args[1];
+      final flags = UnifyFeatures.instance;
+      if (!flags.all().containsKey(key)) {
+        print('❌ Unknown feature: $key');
+        return;
+      }
+      if (args[0] == 'enable') {
+        flags.enable(key);
+        print('✅ Enabled feature: $key');
+      } else {
+        flags.disable(key);
+        print('🚫 Disabled feature: $key');
+      }
+      return;
+    }
+    print('Usage: dart run flutter_unify:cli features [enable|disable] <flag>');
+  }
+}
+
+class RoadmapCommand extends Command {
+  @override
+  Future<void> execute(List<String> args) async {
+    if (args.isEmpty || args.first == '--help') {
+      print(
+          '''\nRoadmap commands\n  status [--json] [--phase=phaseN]   Show phase completion ratios\n''');
+      return;
+    }
+    final jsonMode = args.contains('--json');
+    String? phaseFilter;
+    for (final a in args) {
+      if (a.startsWith('--phase=')) phaseFilter = a.split('=')[1];
+    }
+    final tracker = PhaseTracker.instance;
+    final phases = tracker.snapshotAll();
+    Iterable<PhaseStatus> filtered = phases;
+    if (phaseFilter != null) {
+      filtered = phases.where((p) => p.id.name == phaseFilter);
+    }
+    if (jsonMode) {
+      final out = filtered.map((p) => p.toJson()).toList();
+      print(jsonEncode({'phases': out}));
+    } else {
+      for (final p in filtered) {
+        final pct = (p.completionRatio * 100).toStringAsFixed(1);
+        print('🗂  ${p.label} - ${p.completedCount}/${p.totalCount} ($pct%)');
+        for (final i in p.items) {
+          print('  ${i.done ? '✅' : '• '} ${i.description} (${i.key})');
+        }
+      }
     }
   }
 }

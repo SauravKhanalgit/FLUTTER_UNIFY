@@ -7,6 +7,25 @@ import 'web/web_optimizer.dart';
 import 'desktop/desktop_manager.dart';
 import 'mobile/mobile_manager.dart';
 import 'system/system_manager.dart';
+import 'analytics/analytics_adapter.dart';
+import 'bridge/bridge_channel.dart';
+import 'bridge/bridge_store.dart';
+import 'bridge/hybrid_navigation.dart';
+import 'media/media_core.dart';
+import 'media/ar_adapter.dart';
+import 'media/ml_pipeline.dart';
+import 'background/background_scheduler.dart';
+import 'desktop/device_bridge.dart';
+import 'security/crypto_envelope.dart';
+import 'security/privacy_toolkit.dart';
+import 'security/anomaly_detector.dart';
+import 'ai/modules/recommendation_engine.dart';
+import 'ai/modules/chat_orchestrator.dart';
+import 'ai/modules/predictive_flows.dart';
+import 'dev/dev_events_dashboard.dart';
+import 'dev/scenario_scripting.dart';
+import 'dev/multi_platform_test_harness.dart';
+import 'roadmap/phase_tracker.dart';
 
 /// The main Unify API - single entry point for all platform capabilities
 class Unify {
@@ -31,6 +50,26 @@ class Unify {
   static DesktopManager? _desktopManager;
   static MobileManager? _mobileManager;
   static SystemManager? _systemManager;
+  static UnifiedAnalytics? _analytics;
+  static BridgeStore? _bridgeStore;
+  static BridgeTransport?
+      _bridgeTransport; // requires import; create abstract here
+  static HybridNavigator? _hybridNav;
+  static UnifiedMedia? _media;
+  static ArAdapter? _ar;
+  static MlPipeline? _mlPipeline;
+  static BackgroundScheduler? _background;
+  static DeviceBridge? _deviceBridge;
+  static CryptoEnvelopeService? _crypto;
+  static PrivacyToolkit? _privacy;
+  static AnomalyDetector? _anomaly;
+  static RecommendationEngine? _reco;
+  static ChatOrchestrator? _chat;
+  static PredictiveFlowEngine? _predictive;
+  static DevEventsDashboard? _devDash;
+  static ScenarioRunner? _scenarioRunner;
+  static MultiPlatformTestHarness? _testHarness;
+  static PhaseTracker? _phaseTracker;
 
   /// Web-specific APIs (available only on web)
   static WebOptimizer get web {
@@ -60,6 +99,28 @@ class Unify {
 
   /// Cross-platform system APIs (available on all platforms)
   static SystemManager get system => _systemManager ??= SystemManager.instance;
+
+  /// Analytics facade (must be initialized explicitly)
+  static UnifiedAnalytics get analytics =>
+      _analytics ??= UnifiedAnalytics.instance;
+
+  /// Hybrid navigation (native <-> Flutter) experimental facade
+  static HybridNavigator get page => _hybridNav ??= HybridNavigator.instance;
+
+  /// Unified media APIs (camera/mic/gallery/screen) experimental
+  static UnifiedMedia get media => _media ??= UnifiedMedia.instance;
+
+  /// AR adapter (experimental, feature-gated)
+  static ArAdapter get ar {
+    _ar ??= MockArAdapter();
+    return _ar!;
+  }
+
+  /// ML pipeline (experimental, feature-gated)
+  static MlPipeline get mlPipeline {
+    _mlPipeline ??= MlPipeline();
+    return _mlPipeline!;
+  }
 
   /// Initialize Unify with automatic platform detection
   static Future<void> initialize({
@@ -187,6 +248,15 @@ class Unify {
     };
   }
 
+  /// Access shared bridge store (initializes lazily)
+  static BridgeStore get bridgeStore => _bridgeStore ??= BridgeStore.instance;
+
+  /// Create / get a bridge channel (memory transport fallback)
+  static BridgeChannel bridgeChannel(String name) {
+    _bridgeTransport ??= MemoryBridgeTransport();
+    return BridgeChannel(name, _bridgeTransport!);
+  }
+
   /// Dispose of all resources
   static Future<void> dispose() async {
     if (!instance._isInitialized) return;
@@ -212,10 +282,75 @@ class Unify {
       _systemManager = null;
     }
 
+    if (_analytics != null) {
+      await _analytics!.dispose();
+      _analytics = null;
+    }
+
+    if (_bridgeStore != null) {
+      await _bridgeStore!.dispose();
+      _bridgeStore = null;
+    }
+    if (_bridgeTransport != null) {
+      await _bridgeTransport!.dispose();
+      _bridgeTransport = null;
+    }
+    if (_hybridNav != null) {
+      await _hybridNav!.dispose();
+      _hybridNav = null;
+    }
+    if (_media != null) {
+      await _media!.dispose();
+      _media = null;
+    }
+    if (_background != null) {
+      await _background!.dispose();
+      _background = null;
+    }
+    if (_deviceBridge != null) {
+      // No dispose method yet
+      _deviceBridge = null;
+    }
+    _crypto = null; // stateless singletons for now
+    _privacy = null;
+    _anomaly = null;
+    _reco = null;
+    _chat = null;
+    _predictive = null;
+    _devDash = null;
+    _scenarioRunner = null;
+    _testHarness = null;
+    _phaseTracker = null;
+
     instance._isInitialized = false;
 
     if (kDebugMode) {
       print('Unify: Disposed all resources');
     }
   }
+
+  /// Security services (experimental)
+  static CryptoEnvelopeService get crypto =>
+      _crypto ??= CryptoEnvelopeService.instance;
+  static PrivacyToolkit get privacy => _privacy ??= PrivacyToolkit.instance;
+  static AnomalyDetector get anomaly => _anomaly ??= AnomalyDetector.instance;
+
+  /// AI module facades (experimental)
+  static RecommendationEngine get recommendations =>
+      _reco ??= RecommendationEngine.instance;
+  static ChatOrchestrator get chat => _chat ??= ChatOrchestrator.instance;
+  static PredictiveFlowEngine get predictive =>
+      _predictive ??= PredictiveFlowEngine.instance;
+
+  /// Developer ergonomics facades (experimental)
+  static DevEventsDashboard get devDashboard =>
+      _devDash ??= DevEventsDashboard.instance;
+  static ScenarioRunner get scenarios =>
+      _scenarioRunner ??= ScenarioRunner.instance;
+  static MultiPlatformTestHarness get tests =>
+      _testHarness ??= MultiPlatformTestHarness.instance;
+
+  /// Phase tracking (experimental)
+  static PhaseTracker get phaseTracker =>
+      _phaseTracker ??= PhaseTracker.instance;
 }

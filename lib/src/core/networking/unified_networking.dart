@@ -44,6 +44,11 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter_unify/flutter_unify.dart';
+import '../../networking/offline_client.dart';
+import '../../networking/graphql_client.dart';
+import '../../feature_flags/feature_flags.dart';
+import '../../networking/edge_routing.dart';
+import '../../networking/subscription_hub.dart';
 
 /// Unified networking and connectivity API
 ///
@@ -72,6 +77,20 @@ class UnifiedNetworking {
     type: ConnectivityType.unknown,
     isConnected: false,
   );
+  OfflineClient? _offlineClient;
+
+  bool get offlineNetworkingEnabled => _offlineClient != null; // new helper
+
+  /// Dynamically enable offline networking (if feature flag is active)
+  void enableOfflineNetworking() {
+    if (_adapter != null &&
+        _offlineClient == null &&
+        UnifyFeatures.instance.isEnabled('offline_networking')) {
+      _offlineClient = OfflineClient(_adapter!);
+      _offlineClient!.initializePersistence();
+      _offlineClient!.setOnline(_isOnline);
+    }
+  }
 
   /// Initialize the networking system
   Future<bool> initialize([NetworkingAdapter? adapter]) async {
@@ -79,17 +98,29 @@ class UnifiedNetworking {
     final initialized = await _adapter!.initialize();
 
     if (initialized) {
+      // ensure subscription hub ready
+      await SubscriptionHub.instance.initialize();
+      if (UnifyFeatures.instance.isEnabled('offline_networking')) {
+        _offlineClient = OfflineClient(_adapter!);
+        await _offlineClient!.initializePersistence();
+      }
+      // Bind adapter for GraphQL facade
+      GraphQLClient.instance.bindAdapter(_adapter!);
       // Start monitoring connectivity
       _adapter!.onConnectivityChanged.listen((status) {
         _currentStatus = status;
         _isOnline = status.isConnected;
+        // propagate status to offline client
+        _offlineClient?.setOnline(_isOnline);
         _connectivityController.add(status);
 
-        // Process offline queue when coming back online
+        // Process legacy internal queue when coming back online
         if (_isOnline) {
           _processOfflineQueue();
         }
       });
+      // Ensure offline client has initial state
+      _offlineClient?.setOnline(_isOnline);
     }
 
     return initialized;
@@ -139,18 +170,20 @@ class UnifiedNetworking {
     int maxRetries = 3,
     bool queueOffline = false,
   }) async {
-    return await _makeRequest(
-      NetworkRequest(
-        method: HttpMethod.get,
-        url: url,
-        headers: headers,
-        queryParameters: queryParameters,
-        timeout: timeout,
-        retryOnFailure: retryOnFailure,
-        maxRetries: maxRetries,
-        queueOffline: queueOffline,
-      ),
+    final request = NetworkRequest(
+      method: HttpMethod.get,
+      url: url,
+      headers: headers,
+      queryParameters: queryParameters,
+      timeout: timeout,
+      retryOnFailure: retryOnFailure,
+      maxRetries: maxRetries,
+      queueOffline: queueOffline,
     );
+    if (_offlineClient != null) {
+      return _offlineClient!.execute(request, queueIfOffline: queueOffline);
+    }
+    return await _makeRequest(request);
   }
 
   /// Make a POST request
@@ -400,6 +433,23 @@ class UnifiedNetworking {
     );
   }
 
+  // Subscription Hub (if supported by adapter)
+
+  /// Subscribe to a real-time channel (experimental)
+  Stream<SubscriptionEvent> subscribe({
+    required String channel,
+    String? operation,
+    Map<String, dynamic>? variables,
+  }) {
+    final descriptor = SubscriptionDescriptor(
+      id: 'sub_${DateTime.now().millisecondsSinceEpoch}_${channel}',
+      channel: channel,
+      operation: operation,
+      variables: variables,
+    );
+    return SubscriptionHub.instance.subscribe(descriptor);
+  }
+
   // Offline Queue Management
 
   /// Get pending offline requests
@@ -501,26 +551,31 @@ class UnifiedNetworking {
 
     _requestController.add(request);
 
+    // Edge routing rewrite (experimental): service key based on host
+    final uri = Uri.parse(request.url);
+    final serviceKey = uri.host; // simple heuristic; future: mapping
+    final routed = EdgeRouter.instance.rewrite(serviceKey, uri);
+    final effectiveRequest =
+        routed == uri ? request : request.copyWith(url: routed.toString());
+
     // If offline and request should be queued
-    if (!_isOnline && request.queueOffline) {
-      _offlineQueue.add(request);
+    if (!_isOnline && effectiveRequest.queueOffline) {
+      _offlineQueue.add(effectiveRequest);
       return NetworkResponse(
         statusCode: 0,
         data: null,
         headers: {},
-        request: request,
+        request: effectiveRequest,
         isFromCache: false,
         error: 'Request queued for offline processing',
       );
     }
 
-    // Make the request
     try {
-      return await _adapter!.request(request);
+      return await _adapter!.request(effectiveRequest);
     } catch (e) {
-      // If request failed and should be queued offline
-      if (request.queueOffline) {
-        _offlineQueue.add(request);
+      if (effectiveRequest.queueOffline) {
+        _offlineQueue.add(effectiveRequest);
       }
       rethrow;
     }

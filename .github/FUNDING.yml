@@ -1,3 +1,23 @@
+<<<<<<< HEAD
 github: [sauravkhanalgit]
 thanks_dev: 
   sauravkhanalgit
+=======
+# Funding configuration for Flutter Unify
+# See: https://docs.github.com/en/sponsors/receiving-sponsorships-through-github
+
+github: [sauravkhanalgit]
+patreon: 
+open_collective: flutter_unify
+ko_fi:  
+# Example: tidelift: npm/babel
+# No Tidelift package yet
+community_bridge: 
+liberapay: 
+issuehunt: 
+lfx_crowdfunding: 
+polar: 
+buy_me_a_coffee:  
+thanks_dev: sauravkhanalgit
+custom: ['https://github.com/sponsors/sauravkhanalgit']
+>>>>>>> cbb267f (Added Missing Part)
