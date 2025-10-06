@@ -26,6 +26,12 @@ import 'dev/dev_events_dashboard.dart';
 import 'dev/scenario_scripting.dart';
 import 'dev/multi_platform_test_harness.dart';
 import 'roadmap/phase_tracker.dart';
+import 'adapters/notifications_adapter.dart';
+import 'adapters/files_adapter.dart';
+import 'adapters/biometric_adapter.dart';
+import 'adapters/interaction_adapter.dart';
+import 'adapters/window_tray_adapter.dart';
+import 'adapters/camera_adapter.dart';
 
 /// The main Unify API - single entry point for all platform capabilities
 class Unify {
@@ -70,6 +76,12 @@ class Unify {
   static ScenarioRunner? _scenarioRunner;
   static MultiPlatformTestHarness? _testHarness;
   static PhaseTracker? _phaseTracker;
+  static DefaultNotificationsAdapter? _notifications;
+  static FilesAdapter? _files;
+  static LocalAuthBiometricAdapter? _biometrics;
+  static DefaultInteractionAdapter? _interaction;
+  static DesktopWindowTrayAdapter? _windowTray;
+  static DefaultCameraAdapter? _camera;
 
   /// Web-specific APIs (available only on web)
   static WebOptimizer get web {
@@ -122,6 +134,28 @@ class Unify {
     return _mlPipeline!;
   }
 
+  /// Unified notifications
+  static NotificationsAdapter get notifications =>
+      _notifications ??= DefaultNotificationsAdapter();
+
+  /// Unified files (mock by default; host apps can override)
+  static FilesAdapter get files => _files ??= MockFilesAdapter();
+
+  /// Unified biometrics
+  static BiometricAdapter get biometrics =>
+      _biometrics ??= LocalAuthBiometricAdapter();
+
+  /// Unified interaction (clipboard + drag&drop)
+  static InteractionAdapter get interaction =>
+      _interaction ??= DefaultInteractionAdapter();
+
+  /// Unified window & tray (desktop only)
+  static WindowTrayAdapter get windowTray =>
+      _windowTray ??= DesktopWindowTrayAdapter();
+
+  /// Unified camera pickers
+  static CameraAdapter get camera => _camera ??= DefaultCameraAdapter();
+
   /// Initialize Unify with automatic platform detection
   static Future<void> initialize({
     // Web options
@@ -157,6 +191,33 @@ class Unify {
       enableClipboard: enableClipboard,
       enableNotifications: enableNotifications,
     );
+
+    // Initialize notifications adapter lazily
+    if (enableNotifications) {
+      await notifications.initialize();
+    }
+
+    // Initialize files adapter
+    await files.initialize();
+
+    // Initialize biometrics (no-op if unsupported)
+    await biometrics.initialize();
+
+    // Initialize interaction
+    if (enableDragDrop) {
+      await interaction.initializeDragDrop();
+    }
+
+    // Initialize desktop window/tray
+    if (PlatformDetector.isDesktop) {
+      await windowTray.initialize(
+        enableWindowManager: enableWindowManager,
+        enableSystemTray: enableSystemTray,
+      );
+    }
+
+    // Initialize camera adapter
+    await camera.initialize();
 
     // Initialize platform-specific managers
     if (kIsWeb) {

@@ -17,6 +17,7 @@ import 'dart:typed_data';
 
 import '../../models/storage_models.dart';
 import '../../adapters/files_adapter.dart';
+import '../../adapters/files_sqlite_adapter.dart';
 
 /// Unified files and storage API
 ///
@@ -74,7 +75,9 @@ class UnifiedFiles {
 
   /// Initialize the files system
   Future<bool> initialize([FilesAdapter? adapter]) async {
-    _adapter = adapter ?? DefaultFilesAdapter();
+    // Prefer SQLite-based adapter when available (non-web), else fallback
+    _adapter = adapter ??
+        (!identical(0, 0.0) ? DefaultFilesAdapter() : SqliteFilesAdapter());
     return await _adapter!.initialize();
   }
 

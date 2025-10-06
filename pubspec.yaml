@@ -53,6 +53,13 @@ dependencies:
   web: ^1.1.1
   ffi: ^2.1.4
 
+  # Optional unified features (safe to include)
+  flutter_secure_storage: ^9.0.0        # Secure key/value storage for biometrics & secrets
+  file_selector: ^1.0.3                 # Cross-platform file/dir pickers (desktop/web/mobile)
+  super_drag_and_drop: ^0.8.0           # Desktop drag-and-drop API
+  tray_manager: ^0.2.0                  # System tray menus & events
+  desktop_multi_window: ^0.2.0          # Multi-window support on desktop
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -90,6 +97,15 @@ topics:
   - plugin-architecture
   - developer-tools
 
-# Removed screenshots section (temporarily) due to conversion failure; will re-add with valid assets.
+# Screenshots for pub.dev
+screenshots:
+  - description: API examples
+    path: screenshots/api-examples.png
+  - description: Demo app overview
+    path: screenshots/demo-app.png
+
+# NOTE: Push providers are optional and can be added by host apps as needed:
+#   firebase_messaging: ^15.0.0
+#   onesignal_flutter: ^5.0.0
 
 

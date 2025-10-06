@@ -103,12 +103,19 @@ export 'src/core/networking/unified_networking.dart'
 export 'src/adapters/auth_adapter.dart';
 export 'src/adapters/networking_adapter.dart' hide MockWebSocketConnection;
 export 'src/adapters/files_adapter.dart';
+export 'src/adapters/notifications_adapter.dart';
+export 'src/adapters/biometric_adapter.dart';
+export 'src/adapters/interaction_adapter.dart';
+export 'src/adapters/window_tray_adapter.dart';
+export 'src/adapters/camera_adapter.dart';
 
 // Models and types
 export 'src/models/auth_models.dart' hide UnifiedUser;
 export 'src/models/system_models.dart' hide Size;
 export 'src/models/storage_models.dart' hide UploadProgress, DownloadProgress;
 export 'src/models/networking_models.dart';
+export 'src/storage/storage_paths.dart';
+export 'src/storage/audit_trail.dart';
 
 // Common utilities
 export 'src/common/platform_detector.dart';
