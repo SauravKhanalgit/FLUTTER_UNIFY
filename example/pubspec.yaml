@@ -1,11 +1,10 @@
 name: flutter_unify_example
-description: Example app demonstrating Flutter Unify features.
+description: Production demo app showcasing Flutter Unify framework
 version: 1.0.0+1
-publish_to: none
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
-  flutter: ">=3.10.0"
+  flutter: '>=3.10.0'
 
 dependencies:
   flutter:
@@ -13,11 +12,23 @@ dependencies:
   flutter_unify:
     path: ../
   cupertino_icons: ^1.0.2
+  provider: ^6.0.5
+  http: ^1.1.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^3.0.0
+  flutter_lints: ^2.0.0
 
 flutter:
   uses-material-design: true
+
+  assets:
+    - assets/images/
+
+  fonts:
+    - family: Roboto
+      fonts:
+        - asset: fonts/Roboto-Regular.ttf
+        - asset: fonts/Roboto-Bold.ttf
+          weight: 700

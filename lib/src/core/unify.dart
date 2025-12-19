@@ -13,6 +13,7 @@ import '../ai/unified_ai.dart';
 import '../ai/models/ai_models.dart';
 import '../dev/dev_dashboard.dart';
 import 'performance_monitor.dart';
+import 'smart_error_recovery.dart';
 import 'auto_initialize.dart';
 
 /// 🚀 Main Unify class - Single entry point for all unified APIs
@@ -42,6 +43,7 @@ class Unify {
   static UnifiedAI? _ai;
   static DevDashboard? _dev;
   static PerformanceMonitor? _performance;
+  static SmartErrorRecovery? _errorRecovery;
 
   // Streams
   static final StreamController<bool> _initializationController =
@@ -198,6 +200,15 @@ class Unify {
     return _performance!;
   }
 
+  /// Smart error recovery
+  static SmartErrorRecovery get errorRecovery {
+    _errorRecovery ??= SmartErrorRecovery.instance;
+    if (kDebugMode && _config?.enableDebugMode == true) {
+      _errorRecovery!.enable();
+    }
+    return _errorRecovery!;
+  }
+
   /// Framework version
   static String get version => '1.0.0';
 
@@ -212,6 +223,7 @@ class Unify {
     if (_ai != null && _ai!.isInitialized) modules.add('ai');
     if (_dev != null && _dev!.isEnabled) modules.add('dev');
     if (_performance != null && _performance!.isEnabled) modules.add('performance');
+    if (_errorRecovery != null && _errorRecovery!.isEnabled) modules.add('error_recovery');
     return modules;
   }
 

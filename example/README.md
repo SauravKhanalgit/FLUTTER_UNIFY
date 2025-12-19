@@ -1,552 +1,256 @@
-# Flutter Unify - Best in Class Examples
+# Flutter Unify Example App
 
-This directory contains comprehensive examples demonstrating the unified APIs that make Flutter Unify "best in class" for cross-platform development.
+A production-ready demo application showcasing all Flutter Unify features.
 
-## 🚀 Unified APIs Overview
+## Features Demonstrated
 
-### 📱 Unified Notifications
-Cross-platform notification system with scheduling, actions, and rich content support.
+### 🤖 AI Integration
+- Chat with AI models (OpenAI, Anthropic, Gemini)
+- Streaming responses for real-time interaction
+- Embeddings generation
+- Provider switching (OpenAI ↔ Anthropic ↔ Local)
 
+### 🔐 Authentication
+- Email/password authentication
+- OAuth providers (Google, Apple, GitHub)
+- Anonymous authentication
+- Biometric authentication (when available)
+- Multi-factor authentication
+- Account linking and management
+
+### 📊 Developer Tools
+- Real-time performance monitoring
+- Event tracking and visualization
+- System information display
+- Dev dashboard web interface
+- Error tracking and recovery
+
+### 🌐 Networking
+- HTTP requests with performance tracking
+- Automatic retry and error handling
+- Request/response monitoring
+- Network statistics
+
+### 💾 File System
+- Cross-platform file operations
+- Storage adapters (coming soon)
+
+## Getting Started
+
+### Prerequisites
+
+1. **Flutter SDK** (3.10.0 or higher)
+2. **Dart SDK** (3.0.0 or higher)
+
+### Installation
+
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/yourusername/flutter_unify.git
+   cd flutter_unify/example
+   ```
+
+2. **Install dependencies:**
+   ```bash
+   flutter pub get
+   ```
+
+3. **Set up AI API Key** (optional for AI features):
+   ```dart
+   // In lib/main.dart, replace with your actual API key
+   aiApiKey: 'your-openai-api-key-here',
+   ```
+
+4. **Run the app:**
+   ```bash
+   flutter run
+   ```
+
+## App Structure
+
+```
+lib/
+├── main.dart              # App entry point with Unify initialization
+├── screens/
+│   ├── home_screen.dart   # Main dashboard showing all features
+│   ├── auth_screen.dart   # Authentication demo
+│   ├── ai_screen.dart     # AI chat and features demo
+│   └── dev_tools_screen.dart # Developer tools and monitoring
+```
+
+## Features Overview
+
+### Home Screen
+- **Status Check**: Shows if Flutter Unify is properly initialized
+- **Module Status**: Displays available modules
+- **Feature Cards**: Quick access to all features
+- **Performance Stats**: Real-time performance metrics
+
+### Authentication Screen
+- **Email Auth**: Sign up/sign in with email and password
+- **OAuth**: Google, Apple, GitHub integration
+- **Anonymous**: Sign in without credentials
+- **User Profile**: Display current user information
+- **Sign Out**: Secure logout functionality
+
+### AI Screen
+- **Chat Interface**: Conversational AI interaction
+- **Provider Selection**: Switch between AI providers
+- **Streaming**: Real-time response streaming
+- **Embeddings**: Generate text embeddings
+- **Performance Tracking**: Monitor AI operation performance
+
+### Dev Tools Screen
+- **Dashboard Toggle**: Enable/disable dev dashboard
+- **Performance Monitoring**: Real-time performance stats
+- **Event Log**: View recorded events
+- **System Info**: Device and system information
+- **Web Dashboard**: Open browser-based dashboard
+
+## API Usage Examples
+
+### Auto-Initialization
 ```dart
-import 'package:flutter_unify/flutter_unify.dart';
-
-// Initialize notifications
-await UnifiedNotifications.instance.initialize();
-
-// Show simple notification
-await UnifiedNotifications.instance.show(
-  'Hello World',
-  'This works on all platforms!',
-);
-
-// Schedule notification with actions
-await UnifiedNotifications.instance.schedule(
-  DateTime.now().add(Duration(minutes: 5)),
-  'Reminder',
-  'Time to take a break!',
-  actions: [
-    NotificationAction(id: 'snooze', title: 'Snooze 5 min'),
-    NotificationAction(id: 'dismiss', title: 'Dismiss'),
-  ],
+// One-line setup for everything
+final result = await Unify.autoInitialize(
+  aiApiKey: 'your-api-key',
+  aiProvider: AIProvider.openai,
 );
 ```
 
-### 💾 Unified Storage
-Consistent storage API across all platforms with automatic encryption and JSON support.
-
+### Authentication
 ```dart
-// Initialize storage
-await UnifiedStorage.instance.initialize();
+// Email sign in
+final result = await Unify.auth.signInWithEmailAndPassword(email, password);
 
-// Simple key-value storage
-await UnifiedStorage.instance.setString('user_name', 'John Doe');
-final userName = await UnifiedStorage.instance.getString('user_name');
+// OAuth sign in
+await Unify.auth.signInWithProvider(AuthProvider.google);
 
-// JSON storage
-await UnifiedStorage.instance.setJson('user_profile', {
-  'name': 'John Doe',
-  'email': 'john@example.com',
-  'preferences': {'theme': 'dark', 'notifications': true},
-});
-
-// Secure storage
-await UnifiedStorage.instance.setSecureString('api_token', 'secret_token');
-```
-
-### 🔐 Unified Authentication
-Complete authentication system supporting OAuth, WebAuthn, biometrics, and more.
-
-```dart
-// Initialize auth
-await UnifiedAuth.instance.initialize();
-
-// Sign in methods
-final result = await UnifiedAuth.instance.signInWithGoogle();
-// await UnifiedAuth.instance.signInWithApple();
-// await UnifiedAuth.instance.signInWithBiometrics();
-// await UnifiedAuth.instance.signInWithWebAuthn(config);
-
-if (result.success) {
-  print('Welcome ${result.user?.displayName}!');
-}
-
-// Listen to auth state changes
-UnifiedAuth.instance.authStateChanges.listen((user) {
-  if (user != null) {
-    print('User signed in: ${user.email}');
-  } else {
-    print('User signed out');
+// Listen to auth changes
+Unify.auth.onAuthStateChanged.listen((event) {
+  if (event.user != null) {
+    print('User signed in: ${event.user!.email}');
   }
-});
-```
-
-### 📸 Unified Media & Device Access
-Comprehensive media capture and device access with graceful platform-specific fallbacks.
-
-```dart
-// Initialize media system
-await UnifiedMedia.instance.initialize();
-
-// Take photo
-final photoResult = await UnifiedMedia.instance.takePhoto(
-  CameraConfig(facing: CameraFacing.back, quality: MediaQuality.high),
-);
-
-// Record video
-final videoResult = await UnifiedMedia.instance.recordVideo();
-
-// Pick files
-final filesResult = await UnifiedMedia.instance.pickFiles(
-  FilePickerOptions(
-    allowedTypes: [MediaType.image, MediaType.video],
-    allowMultiple: true,
-  ),
-);
-
-// Screen capture (desktop/web)
-final screenResult = await UnifiedMedia.instance.captureScreen(
-  ScreenCaptureConfig(includeAudio: true, quality: MediaQuality.high),
-);
-```
-
-### 🌐 Unified Networking
-Advanced HTTP client with offline queueing, retry logic, WebSocket, and gRPC support.
-
-```dart
-// Initialize networking
-await UnifiedNetworking.instance.initialize();
-
-// HTTP requests with automatic retry and offline queueing
-final response = await UnifiedNetworking.instance.get(
-  'https://api.example.com/data',
-  headers: {'Authorization': 'Bearer $token'},
-);
-
-// File upload with progress
-final uploadResult = await UnifiedNetworking.instance.uploadFile(
-  'https://api.example.com/upload',
-  '/path/to/file.jpg',
-  onProgress: (progress) {
-    print('Upload progress: ${progress.percentage}%');
-  },
-);
-
-// WebSocket connection
-final websocket = UnifiedNetworking.instance.connectWebSocket(
-  WebSocketConfig(url: 'wss://api.example.com/ws'),
-);
-websocket?.listen((message) {
-  print('Received: ${message.data}');
-});
-
-// Monitor connectivity
-UnifiedNetworking.instance.connectivityStream.listen((status) {
-  print('Connection status: ${status.name}');
 });
 ```
 
-### ⚙️ Unified Background Services
-Cross-platform background task scheduling with WorkManager, Service Workers, and native services.
-
+### AI Integration
 ```dart
-// Initialize background services
-await UnifiedBackgroundServices.instance.initialize();
+// Simple chat
+final response = await Unify.ai.chat('Hello, how are you?');
 
-// Register task handler
-UnifiedBackgroundServices.instance.registerTaskHandler(
-  'data_sync',
-  (context) async {
-    print('Running background sync...');
-    
-    // Perform background work
-    await syncDataWithServer();
-    
-    return TaskExecutionResult.success();
-  },
+// Streaming responses
+await for (final chunk in Unify.ai.streamChat(message)) {
+  print(chunk.choices.first.delta?.content ?? '');
+}
+
+// Generate embeddings
+final embedding = await Unify.ai.embed('Flutter is amazing');
+```
+
+### Performance Monitoring
+```dart
+// Track any operation
+final result = await Unify.performance.trackOperation(
+  'api_call',
+  () => fetchData(),
 );
 
-// Schedule periodic task
-await UnifiedBackgroundServices.instance.scheduleTask(
-  BackgroundTaskConfig(
-    id: 'data_sync',
-    name: 'Data Synchronization',
-    type: BackgroundTaskType.periodic,
-    interval: Duration(hours: 1),
-    constraints: {TaskConstraint.requiresNetworkConnected},
-    persistAcrossReboot: true,
-  ),
-);
-
-// Start foreground service (mobile/desktop)
-await UnifiedBackgroundServices.instance.startForegroundService(
-  ForegroundServiceConfig(
-    id: 'music_player',
-    title: 'Music Player',
-    description: 'Playing your favorite tunes',
-    showProgress: true,
-  ),
-);
+// Get statistics
+final stats = Unify.performance.getStats();
+print('Success rate: ${(stats.successRate * 100).round()}%');
 ```
 
-## 🎯 Complete App Example
-
-Here's a complete example showing how all unified APIs work together:
-
+### Dev Dashboard
 ```dart
-import 'package:flutter/material.dart';
-import 'package:flutter_unify/flutter_unify.dart';
+// Enable dashboard
+Unify.dev.enable();
 
-class UnifiedApp extends StatefulWidget {
-  @override
-  _UnifiedAppState createState() => _UnifiedAppState();
-}
+// Record events
+Unify.dev.recordEvent(DashboardEvent(
+  type: EventType.network,
+  title: 'API Request',
+  data: {'url': '/api/users'},
+));
 
-class _UnifiedAppState extends State<UnifiedApp> {
-  bool _isInitialized = false;
-  UnifiedUser? _currentUser;
-  ConnectivityStatus _connectivity = ConnectivityStatus.none;
-
-  @override
-  void initState() {
-    super.initState();
-    _initializeApp();
-  }
-
-  Future<void> _initializeApp() async {
-    // Initialize all unified services
-    await Future.wait([
-      UnifiedNotifications.instance.initialize(),
-      UnifiedStorage.instance.initialize(),
-      UnifiedAuth.instance.initialize(),
-      UnifiedMedia.instance.initialize(),
-      UnifiedNetworking.instance.initialize(),
-      UnifiedBackgroundServices.instance.initialize(),
-    ]);
-
-    // Set up listeners
-    UnifiedAuth.instance.authStateChanges.listen((user) {
-      setState(() => _currentUser = user);
-    });
-
-    UnifiedNetworking.instance.connectivityStream.listen((status) {
-      setState(() => _connectivity = status);
-    });
-
-    // Schedule background tasks
-    await _scheduleBackgroundTasks();
-
-    setState(() => _isInitialized = true);
-  }
-
-  Future<void> _scheduleBackgroundTasks() async {
-    // Register handlers
-    UnifiedBackgroundServices.instance.registerTaskHandler(
-      'notifications_check',
-      (context) async {
-        // Check for new notifications
-        final hasNew = await checkForNewNotifications();
-        
-        if (hasNew) {
-          await UnifiedNotifications.instance.show(
-            'New Updates',
-            'You have new content available!',
-          );
-        }
-        
-        return TaskExecutionResult.success();
-      },
-    );
-
-    // Schedule periodic check
-    await UnifiedBackgroundServices.instance.scheduleTask(
-      BackgroundTaskConfig(
-        id: 'notifications_check',
-        name: 'Check Notifications',
-        type: BackgroundTaskType.periodic,
-        interval: Duration(minutes: 15),
-        constraints: {TaskConstraint.requiresNetworkConnected},
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (!_isInitialized) {
-      return MaterialApp(
-        home: Scaffold(
-          body: Center(child: CircularProgressIndicator()),
-        ),
-      );
-    }
-
-    return MaterialApp(
-      title: 'Flutter Unify Demo',
-      theme: ThemeData(primarySwatch: Colors.blue),
-      home: Scaffold(
-        appBar: AppBar(
-          title: Text('Flutter Unify - Best in Class'),
-          actions: [
-            IconButton(
-              icon: Icon(_connectivity == ConnectivityStatus.none 
-                ? Icons.wifi_off : Icons.wifi),
-              onPressed: () => _showConnectivityInfo(),
-            ),
-          ],
-        ),
-        body: Column(
-          children: [
-            // Auth section
-            Card(
-              child: ListTile(
-                title: Text('Authentication'),
-                subtitle: Text(_currentUser?.email ?? 'Not signed in'),
-                trailing: ElevatedButton(
-                  onPressed: _currentUser == null ? _signIn : _signOut,
-                  child: Text(_currentUser == null ? 'Sign In' : 'Sign Out'),
-                ),
-              ),
-            ),
-            
-            // Actions section
-            Expanded(
-              child: ListView(
-                children: [
-                  _buildActionCard(
-                    'Send Notification',
-                    'Test cross-platform notifications',
-                    Icons.notifications,
-                    _sendTestNotification,
-                  ),
-                  _buildActionCard(
-                    'Take Photo',
-                    'Capture using unified camera API',
-                    Icons.camera,
-                    _takePhoto,
-                  ),
-                  _buildActionCard(
-                    'Upload File',
-                    'Upload with progress tracking',
-                    Icons.upload,
-                    _uploadFile,
-                  ),
-                  _buildActionCard(
-                    'Storage Test',
-                    'Test unified storage API',
-                    Icons.storage,
-                    _testStorage,
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildActionCard(String title, String subtitle, IconData icon, VoidCallback onTap) {
-    return Card(
-      child: ListTile(
-        leading: Icon(icon),
-        title: Text(title),
-        subtitle: Text(subtitle),
-        onTap: onTap,
-      ),
-    );
-  }
-
-  Future<void> _signIn() async {
-    final result = await UnifiedAuth.instance.signInWithGoogle();
-    if (result.success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Welcome ${result.user?.displayName}!')),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Sign in failed: ${result.error}')),
-      );
-    }
-  }
-
-  Future<void> _signOut() async {
-    await UnifiedAuth.instance.signOut();
-  }
-
-  Future<void> _sendTestNotification() async {
-    await UnifiedNotifications.instance.show(
-      'Test Notification',
-      'This notification works on all platforms! 🎉',
-      payload: {'source': 'demo_app'},
-    );
-  }
-
-  Future<void> _takePhoto() async {
-    final result = await UnifiedMedia.instance.takePhoto();
-    if (result.success && result.files?.isNotEmpty == true) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Photo captured: ${result.files!.first.name}')),
-      );
-    }
-  }
-
-  Future<void> _uploadFile() async {
-    final fileResult = await UnifiedMedia.instance.pickFiles();
-    if (fileResult.success && fileResult.files?.isNotEmpty == true) {
-      final file = fileResult.files!.first;
-      
-      // Upload with progress
-      final uploadResult = await UnifiedNetworking.instance.uploadFile(
-        'https://httpbin.org/post',
-        file.path!,
-        onProgress: (progress) {
-          print('Upload progress: ${progress.percentage}%');
-        },
-      );
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(uploadResult.isSuccess 
-            ? 'Upload successful!' 
-            : 'Upload failed: ${uploadResult.error}'),
-        ),
-      );
-    }
-  }
-
-  Future<void> _testStorage() async {
-    // Store test data
-    await UnifiedStorage.instance.setJson('test_data', {
-      'timestamp': DateTime.now().toIso8601String(),
-      'user': _currentUser?.email ?? 'anonymous',
-      'platform': PlatformDetector.currentPlatform.name,
-    });
-
-    // Retrieve and show
-    final data = await UnifiedStorage.instance.getJson('test_data');
-    
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Storage test completed: ${data?['timestamp']}')),
-    );
-  }
-
-  void _showConnectivityInfo() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Connectivity Status'),
-        content: Text('Current status: ${_connectivity.name}'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('OK'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<bool> checkForNewNotifications() async {
-    // Simulate checking for new content
-    await Future.delayed(Duration(seconds: 1));
-    return DateTime.now().second % 10 == 0; // Random chance
-  }
-}
+// Open web dashboard
+await Unify.dev.show(); // Opens http://localhost:8080
 ```
 
-## 🎨 Best Practices
+## Development
 
-### 1. Initialize Early
-Always initialize unified services in your app's main function or early in the widget tree:
+### Adding New Features
 
-```dart
-void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  
-  // Initialize core services
-  await UnifiedAuth.instance.initialize();
-  await UnifiedStorage.instance.initialize();
-  
-  runApp(MyApp());
-}
+1. **Create a new screen** in `lib/screens/`
+2. **Add navigation** in `main.dart`
+3. **Implement the feature** using Flutter Unify APIs
+4. **Add performance tracking** where appropriate
+5. **Record dev events** for monitoring
+
+### Testing
+
+```bash
+# Run all tests
+flutter test
+
+# Run specific test
+flutter test test/widget_test.dart
+
+# Run integration tests
+flutter test integration_test/
 ```
 
-### 2. Handle Platform Differences
-Use capability detection to provide the best experience on each platform:
+### Building
 
-```dart
-if (UnifiedMedia.instance.isFeatureSupported('screen_capture')) {
-  // Show screen capture option
-} else {
-  // Hide or provide alternative
-}
+```bash
+# Build for Android
+flutter build apk
+
+# Build for iOS
+flutter build ios
+
+# Build for Web
+flutter build web
 ```
 
-### 3. Implement Proper Error Handling
-Always handle errors gracefully:
+## Troubleshooting
 
-```dart
-try {
-  final result = await UnifiedAuth.instance.signInWithGoogle();
-  if (result.success) {
-    // Handle success
-  } else {
-    // Handle failure
-    showError(result.error);
-  }
-} catch (e) {
-  // Handle exceptions
-  showError('Unexpected error: $e');
-}
-```
+### AI Features Not Working
+- Check that you have set a valid API key in `main.dart`
+- Ensure you have internet connection
+- Verify the API key has sufficient credits
 
-### 4. Use Streams for Real-time Updates
-Listen to streams for real-time updates:
+### Authentication Not Working
+- Some auth methods may require additional setup (Firebase, Supabase)
+- Check the console for initialization errors
+- Verify platform-specific configurations
 
-```dart
-StreamSubscription? _authSubscription;
+### Dev Dashboard Not Opening
+- Ensure the dashboard is enabled: `Unify.dev.enable()`
+- Check that port 8080 is available
+- Try a different port: `await Unify.dev.show(port: 3000)`
 
-void _setupListeners() {
-  _authSubscription = UnifiedAuth.instance.authStateChanges.listen((user) {
-    // Update UI based on auth state
-  });
-}
+## Contributing
 
-@override
-void dispose() {
-  _authSubscription?.cancel();
-  super.dispose();
-}
-```
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests for new features
+5. Submit a pull request
 
-### 5. Optimize for Each Platform
-Take advantage of platform-specific features:
+## License
 
-```dart
-// Web: Use WebAuthn for passwordless auth
-if (kIsWeb) {
-  await UnifiedAuth.instance.signInWithWebAuthn(webAuthnConfig);
-}
+This example app is part of Flutter Unify and follows the same license terms.
 
-// Mobile: Use biometric authentication
-if (PlatformDetector.isMobile) {
-  await UnifiedAuth.instance.signInWithBiometrics();
-}
+## Support
 
-// Desktop: Use native system integration
-if (PlatformDetector.isDesktop) {
-  await UnifiedBackgroundServices.instance.startForegroundService(serviceConfig);
-}
-```
+- 📚 **Documentation**: [flutter_unify_docs.com](https://flutter-unify-docs.com)
+- 🐛 **Issues**: [GitHub Issues](https://github.com/flutter-unify/flutter_unify/issues)
+- 💬 **Discussions**: [GitHub Discussions](https://github.com/flutter-unify/flutter_unify/discussions)
+- 📧 **Email**: support@flutter-unify.com
 
-## 🔥 Why This Makes Flutter Unify "Best in Class"
+---
 
-1. **🎯 Single API Surface**: One API that works everywhere, no platform-specific code needed
-2. **🚀 Native Performance**: Platform-optimized implementations under the hood
-3. **🛡️ Automatic Fallbacks**: Graceful degradation when features aren't available
-4. **📱 Complete Coverage**: Covers all major app functionality needs
-5. **🔧 Developer Experience**: Simple, intuitive APIs with comprehensive error handling
-6. **📚 Rich Documentation**: Extensive examples and best practices
-7. **🎨 Flexible Architecture**: Use what you need, when you need it
-8. **🔄 Future-Proof**: Easy to extend and adapt to new platforms
+**Built with ❤️ using Flutter Unify**
 
-This unified approach eliminates the complexity of managing multiple platform-specific packages while providing the full power and performance of native implementations.
+Showcase all the amazing features of Flutter Unify in this production-ready demo app!

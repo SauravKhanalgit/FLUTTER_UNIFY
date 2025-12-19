@@ -114,6 +114,7 @@ export 'src/adapters/auth_adapter.dart';
 export 'src/adapters/firebase_auth_adapter.dart';
 export 'src/adapters/supabase_auth_adapter.dart';
 export 'src/core/performance_monitor.dart';
+export 'src/core/smart_error_recovery.dart';
 export 'src/dev/dev_dashboard_server.dart';
 export 'src/adapters/networking_adapter.dart' hide MockWebSocketConnection;
 export 'src/adapters/files_adapter.dart';
