@@ -99,8 +99,22 @@ export 'src/core/files/unified_files.dart';
 export 'src/core/networking/unified_networking.dart'
     hide MockWebSocketConnection;
 
+// AI module
+export 'src/ai/unified_ai.dart';
+export 'src/ai/models/ai_models.dart';
+export 'src/ai/adapters/ai_adapter.dart';
+export 'src/ai/adapters/openai_adapter.dart';
+export 'src/ai/adapters/anthropic_adapter.dart';
+
+// Developer tools
+export 'src/dev/dev_dashboard.dart';
+
 // Adapters - Pluggable backends
 export 'src/adapters/auth_adapter.dart';
+export 'src/adapters/firebase_auth_adapter.dart';
+export 'src/adapters/supabase_auth_adapter.dart';
+export 'src/core/performance_monitor.dart';
+export 'src/dev/dev_dashboard_server.dart';
 export 'src/adapters/networking_adapter.dart' hide MockWebSocketConnection;
 export 'src/adapters/files_adapter.dart';
 export 'src/adapters/notifications_adapter.dart';

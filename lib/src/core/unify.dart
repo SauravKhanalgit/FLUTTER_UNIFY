@@ -9,6 +9,11 @@ import 'config/unify_config.dart';
 import '../adapters/auth_adapter.dart';
 import '../adapters/networking_adapter.dart';
 import '../adapters/files_adapter.dart';
+import '../ai/unified_ai.dart';
+import '../ai/models/ai_models.dart';
+import '../dev/dev_dashboard.dart';
+import 'performance_monitor.dart';
+import 'auto_initialize.dart';
 
 /// 🚀 Main Unify class - Single entry point for all unified APIs
 ///
@@ -34,6 +39,9 @@ class Unify {
   static UnifiedFiles? _files;
   static UnifiedSystem? _system;
   static UnifiedNotifications? _notifications;
+  static UnifiedAI? _ai;
+  static DevDashboard? _dev;
+  static PerformanceMonitor? _performance;
 
   // Streams
   static final StreamController<bool> _initializationController =
@@ -166,6 +174,30 @@ class Unify {
     return _notifications!;
   }
 
+  /// AI module
+  static UnifiedAI get ai {
+    _ai ??= UnifiedAI.instance;
+    return _ai!;
+  }
+
+  /// Developer tools and dashboard
+  static DevDashboard get dev {
+    _dev ??= DevDashboard.instance;
+    if (kDebugMode && _config?.enableDebugMode == true) {
+      _dev!.enable();
+    }
+    return _dev!;
+  }
+
+  /// Performance monitoring
+  static PerformanceMonitor get performance {
+    _performance ??= PerformanceMonitor.instance;
+    if (kDebugMode && _config?.enableDebugMode == true) {
+      _performance!.enable();
+    }
+    return _performance!;
+  }
+
   /// Framework version
   static String get version => '1.0.0';
 
@@ -177,6 +209,9 @@ class Unify {
     if (_files != null) modules.add('files');
     if (_system != null) modules.add('system');
     if (_notifications != null) modules.add('notifications');
+    if (_ai != null && _ai!.isInitialized) modules.add('ai');
+    if (_dev != null && _dev!.isEnabled) modules.add('dev');
+    if (_performance != null && _performance!.isEnabled) modules.add('performance');
     return modules;
   }
 
@@ -196,6 +231,9 @@ class Unify {
     if (_files != null) tasks.add(_files!.dispose());
     if (_system != null) tasks.add(_system!.dispose());
     if (_notifications != null) tasks.add(_notifications!.dispose());
+    if (_ai != null) tasks.add(_ai!.dispose());
+    _dev?.dispose();
+    _performance?.dispose();
 
     await Future.wait(tasks);
 
@@ -204,10 +242,34 @@ class Unify {
     _files = null;
     _system = null;
     _notifications = null;
+    _ai = null;
+    _dev = null;
+    _performance = null;
     _isInitialized = false;
     _isInitializing = false;
 
     await _initializationController.close();
+  }
+
+  /// Auto-initialize with best available adapters
+  ///
+  /// Automatically detects and configures adapters based on available packages.
+  /// Makes setup effortless!
+  ///
+  /// ```dart
+  /// final result = await Unify.autoInitialize(aiApiKey: 'your-key');
+  /// print('Initialized: ${result.initializedModules}');
+  /// ```
+  static Future<AutoInitResult> autoInitialize({
+    Map<String, dynamic>? config,
+    String? aiApiKey,
+    AIProvider? aiProvider,
+  }) async {
+    return await AutoInitialize.instance.initialize(
+      config: config,
+      aiApiKey: aiApiKey,
+      aiProvider: aiProvider,
+    );
   }
 
   static void _ensureInitialized() {

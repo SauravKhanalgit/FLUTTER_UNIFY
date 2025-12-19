@@ -7,6 +7,8 @@
 import 'dart:async';
 import 'dart:typed_data';
 import '../models/networking_models.dart';
+import 'package:dio/dio.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 
 /// Abstract base class for all networking adapters
 ///
@@ -633,8 +635,24 @@ class MockWebSocketConnection extends WebSocketConnection {
   }
 }
 
-/// HTTP-based adapter using dart:io or package:http
+/// HTTP-based adapter using Dio for HTTP requests
 class HttpAdapter extends NetworkingAdapter {
+  Dio? _dio;
+  Connectivity? _connectivity;
+  final List<RequestInterceptor> _requestInterceptors = [];
+  final List<ResponseInterceptor> _responseInterceptors = [];
+  final Map<String, NetworkResponse> _cache = {};
+  bool _cachingEnabled = false;
+  Duration _defaultCacheTtl = const Duration(minutes: 5);
+  
+  int _totalRequests = 0;
+  int _successfulRequests = 0;
+  int _failedRequests = 0;
+  int _totalBytesUploaded = 0;
+  int _totalBytesDownloaded = 0;
+  final List<Duration> _responseTimes = [];
+  final DateTime _startTime = DateTime.now();
+
   @override
   String get name => 'HttpAdapter';
 
@@ -643,23 +661,214 @@ class HttpAdapter extends NetworkingAdapter {
 
   @override
   Future<bool> initialize() async {
-    // Initialize HTTP client
-    return true;
+    try {
+      _dio = Dio();
+      _connectivity = Connectivity();
+      return true;
+    } catch (e) {
+      return false;
+    }
   }
 
-  // Implementation would use actual HTTP client
+  ConnectivityType _mapConnectivityType(ConnectivityResult result) {
+    switch (result) {
+      case ConnectivityResult.wifi:
+        return ConnectivityType.wifi;
+      case ConnectivityResult.mobile:
+        return ConnectivityType.mobile;
+      case ConnectivityResult.ethernet:
+        return ConnectivityType.ethernet;
+      case ConnectivityResult.bluetooth:
+        return ConnectivityType.bluetooth;
+      case ConnectivityResult.vpn:
+        return ConnectivityType.vpn;
+      case ConnectivityResult.none:
+        return ConnectivityType.none;
+      default:
+        return ConnectivityType.unknown;
+    }
+  }
+
   @override
-  Stream<ConnectivityStatus> get onConnectivityChanged => Stream.empty();
+  Stream<ConnectivityStatus> get onConnectivityChanged {
+    if (_connectivity == null) return Stream.empty();
+    return _connectivity!.onConnectivityChanged.map((results) {
+      // connectivity_plus returns List<ConnectivityResult>
+      final result = results.isNotEmpty ? results.first : ConnectivityResult.none;
+      return ConnectivityStatus(
+        type: _mapConnectivityType(result),
+        isConnected: result != ConnectivityResult.none,
+      );
+    });
+  }
 
   @override
   Future<ConnectivityStatus> checkConnectivity() async {
+    if (_connectivity == null) {
+      return ConnectivityStatus(
+        type: ConnectivityType.unknown,
+        isConnected: false,
+      );
+    }
+    final results = await _connectivity!.checkConnectivity();
+    // connectivity_plus returns List<ConnectivityResult>
+    final result = results.isNotEmpty ? results.first : ConnectivityResult.none;
     return ConnectivityStatus(
-        type: ConnectivityType.unknown, isConnected: false);
+      type: _mapConnectivityType(result),
+      isConnected: result != ConnectivityResult.none,
+    );
   }
 
   @override
   Future<NetworkResponse> request(NetworkRequest request) async {
-    throw UnimplementedError('HttpAdapter not fully implemented');
+    if (_dio == null) {
+      throw StateError('HttpAdapter not initialized. Call initialize() first.');
+    }
+
+    final startTime = DateTime.now();
+    _totalRequests++;
+
+    // Check cache first
+    if (_cachingEnabled && request.cacheResponse) {
+      final cacheKey = '${request.method.name}_${request.url}';
+      final cached = _cache[cacheKey];
+      if (cached != null) {
+        return cached;
+      }
+    }
+
+    try {
+      // Apply request interceptors
+      var processedRequest = request;
+      for (final interceptor in _requestInterceptors) {
+        final result = interceptor(processedRequest);
+        if (result != null) {
+          processedRequest = result as NetworkRequest;
+        }
+      }
+
+      // Convert HttpMethod to Dio method
+      Options options = Options(
+        method: processedRequest.method.name.toUpperCase(),
+        headers: processedRequest.headers,
+        sendTimeout: processedRequest.timeout,
+        receiveTimeout: processedRequest.timeout,
+      );
+
+      // Make request with query parameters passed separately
+      Response response;
+      switch (processedRequest.method) {
+        case HttpMethod.get:
+          response = await _dio!.get(
+            processedRequest.url,
+            queryParameters: processedRequest.queryParameters,
+            options: options,
+          );
+          break;
+        case HttpMethod.post:
+          response = await _dio!.post(
+            processedRequest.url,
+            data: processedRequest.data,
+            queryParameters: processedRequest.queryParameters,
+            options: options,
+          );
+          break;
+        case HttpMethod.put:
+          response = await _dio!.put(
+            processedRequest.url,
+            data: processedRequest.data,
+            queryParameters: processedRequest.queryParameters,
+            options: options,
+          );
+          break;
+        case HttpMethod.delete:
+          response = await _dio!.delete(
+            processedRequest.url,
+            queryParameters: processedRequest.queryParameters,
+            options: options,
+          );
+          break;
+        case HttpMethod.patch:
+          response = await _dio!.patch(
+            processedRequest.url,
+            data: processedRequest.data,
+            queryParameters: processedRequest.queryParameters,
+            options: options,
+          );
+          break;
+        case HttpMethod.head:
+          response = await _dio!.head(
+            processedRequest.url,
+            queryParameters: processedRequest.queryParameters,
+            options: options,
+          );
+          break;
+        case HttpMethod.options:
+          response = await _dio!.request(
+            processedRequest.url,
+            queryParameters: processedRequest.queryParameters,
+            options: options.copyWith(method: 'OPTIONS'),
+          );
+          break;
+      }
+
+      final responseTime = DateTime.now().difference(startTime);
+      _responseTimes.add(responseTime);
+      _successfulRequests++;
+
+      final networkResponse = NetworkResponse(
+        statusCode: response.statusCode ?? 200,
+        data: response.data,
+        headers: Map<String, String>.from(
+          response.headers.map.map((key, value) => MapEntry(
+                key,
+                value.isNotEmpty ? value.first : '',
+              )),
+        ),
+        request: processedRequest,
+        responseTime: responseTime,
+        size: response.data?.toString().length,
+      );
+
+      // Apply response interceptors
+      var processedResponse = networkResponse;
+      for (final interceptor in _responseInterceptors) {
+        final result = interceptor(processedResponse);
+        if (result != null) {
+          processedResponse = result as NetworkResponse;
+        }
+      }
+
+      // Cache response if enabled
+      if (_cachingEnabled && processedRequest.cacheResponse) {
+        final cacheKey = '${processedRequest.method.name}_${processedRequest.url}';
+        _cache[cacheKey] = processedResponse;
+      }
+
+      return processedResponse;
+    } catch (e) {
+      _failedRequests++;
+      final responseTime = DateTime.now().difference(startTime);
+      
+      String errorMessage = 'Request failed';
+      int statusCode = 0;
+      
+      if (e is DioException) {
+        errorMessage = e.message ?? e.toString();
+        statusCode = e.response?.statusCode ?? 0;
+      } else {
+        errorMessage = e.toString();
+      }
+
+      return NetworkResponse(
+        statusCode: statusCode,
+        data: null,
+        headers: {},
+        request: request,
+        error: errorMessage,
+        responseTime: responseTime,
+      );
+    }
   }
 
   @override
@@ -667,11 +876,89 @@ class HttpAdapter extends NetworkingAdapter {
       String url, Uint8List fileBytes, String fileName,
       {Map<String, String>? headers,
       Map<String, dynamic>? fields,
-      String fieldName = 'file'}) async* {}
+      String fieldName = 'file'}) async* {
+    if (_dio == null) {
+      throw StateError('HttpAdapter not initialized. Call initialize() first.');
+    }
+
+    try {
+      final formData = FormData.fromMap({
+        fieldName: MultipartFile.fromBytes(
+          fileBytes,
+          filename: fileName,
+        ),
+        if (fields != null) ...fields,
+      });
+
+      await _dio!.post(
+        url,
+        data: formData,
+        options: Options(headers: headers),
+        onSendProgress: (sent, total) {
+          _totalBytesUploaded += sent;
+        },
+      );
+
+      yield UploadProgress(
+        id: 'upload_${DateTime.now().millisecondsSinceEpoch}',
+        fileName: fileName,
+        totalBytes: fileBytes.length,
+        uploadedBytes: fileBytes.length,
+        percentage: 100.0,
+        isComplete: true,
+      );
+    } catch (e) {
+      yield UploadProgress(
+        id: 'upload_${DateTime.now().millisecondsSinceEpoch}',
+        fileName: fileName,
+        totalBytes: fileBytes.length,
+        uploadedBytes: 0,
+        percentage: 0.0,
+        isComplete: false,
+        error: e.toString(),
+      );
+    }
+  }
 
   @override
   Stream<DownloadProgress> download(String url,
-      {Map<String, String>? headers, String? savePath}) async* {}
+      {Map<String, String>? headers, String? savePath}) async* {
+    if (_dio == null) {
+      throw StateError('HttpAdapter not initialized. Call initialize() first.');
+    }
+
+    try {
+      await _dio!.download(
+        url,
+        savePath,
+        options: Options(headers: headers),
+        onReceiveProgress: (received, total) {
+          _totalBytesDownloaded += received;
+        },
+      );
+
+      yield DownloadProgress(
+        id: 'download_${DateTime.now().millisecondsSinceEpoch}',
+        url: url,
+        totalBytes: 0,
+        downloadedBytes: 0,
+        percentage: 100.0,
+        isComplete: true,
+        savePath: savePath,
+      );
+    } catch (e) {
+      yield DownloadProgress(
+        id: 'download_${DateTime.now().millisecondsSinceEpoch}',
+        url: url,
+        totalBytes: 0,
+        downloadedBytes: 0,
+        percentage: 0.0,
+        isComplete: false,
+        error: e.toString(),
+        savePath: savePath,
+      );
+    }
+  }
 
   @override
   Future<WebSocketConnection> connectWebSocket(String url,
@@ -679,7 +966,10 @@ class HttpAdapter extends NetworkingAdapter {
       List<String>? protocols,
       Duration? pingInterval,
       bool autoReconnect = true}) async {
-    throw UnimplementedError('WebSocket not implemented in HttpAdapter');
+    // WebSocket is not directly supported by Dio
+    // This would require a separate WebSocket library
+    throw UnimplementedError(
+        'WebSocket not implemented in HttpAdapter. Use a WebSocket-specific adapter.');
   }
 
   @override
@@ -687,56 +977,128 @@ class HttpAdapter extends NetworkingAdapter {
       {Map<String, dynamic>? variables,
       Map<String, String>? headers,
       String? operationName}) async {
-    throw UnimplementedError('GraphQL not implemented in HttpAdapter');
+    if (_dio == null) {
+      throw StateError('HttpAdapter not initialized. Call initialize() first.');
+    }
+
+    try {
+      final response = await _dio!.post(
+        endpoint,
+        data: {
+          'query': query,
+          if (variables != null) 'variables': variables,
+          if (operationName != null) 'operationName': operationName,
+        },
+        options: Options(headers: headers),
+      );
+
+      return GraphQLResponse(
+        data: response.data['data'],
+        errors: response.data['errors'],
+        extensions: response.data['extensions'],
+      );
+    } catch (e) {
+      return GraphQLResponse(
+        data: null,
+        errors: [{'message': e.toString()}],
+      );
+    }
   }
 
   @override
   Future<GrpcResponse> grpc(String endpoint, String service, String method,
       Map<String, dynamic> request,
       {Map<String, String>? metadata, Duration? timeout}) async {
-    throw UnimplementedError('gRPC not implemented in HttpAdapter');
+    // gRPC requires specialized libraries (grpc package)
+    throw UnimplementedError(
+        'gRPC not implemented in HttpAdapter. Use a gRPC-specific adapter.');
   }
 
   @override
-  void addRequestInterceptor(RequestInterceptor interceptor) {}
+  void addRequestInterceptor(RequestInterceptor interceptor) {
+    _requestInterceptors.add(interceptor);
+  }
 
   @override
-  void addResponseInterceptor(ResponseInterceptor interceptor) {}
+  void addResponseInterceptor(ResponseInterceptor interceptor) {
+    _responseInterceptors.add(interceptor);
+  }
 
   @override
-  void removeRequestInterceptor(RequestInterceptor interceptor) {}
+  void removeRequestInterceptor(RequestInterceptor interceptor) {
+    _requestInterceptors.remove(interceptor);
+  }
 
   @override
-  void removeResponseInterceptor(ResponseInterceptor interceptor) {}
+  void removeResponseInterceptor(ResponseInterceptor interceptor) {
+    _responseInterceptors.remove(interceptor);
+  }
 
   @override
   void enableCaching(
       {Duration defaultTtl = const Duration(minutes: 5),
-      int maxCacheSize = 50}) {}
+      int maxCacheSize = 50}) {
+    _cachingEnabled = true;
+    _defaultCacheTtl = defaultTtl;
+    // Simple cache size limit
+    if (_cache.length > maxCacheSize) {
+      final keys = _cache.keys.toList();
+      keys.removeRange(0, keys.length - maxCacheSize);
+      for (final key in keys) {
+        _cache.remove(key);
+      }
+    }
+  }
 
   @override
-  void disableCaching() {}
+  void disableCaching() {
+    _cachingEnabled = false;
+    _cache.clear();
+  }
 
   @override
-  void clearCache() {}
+  void clearCache() {
+    _cache.clear();
+  }
 
   @override
   Future<NetworkStatistics> getStatistics() async {
+    final avgResponseTime = _responseTimes.isEmpty
+        ? Duration.zero
+        : Duration(
+            milliseconds: (_responseTimes
+                        .map((d) => d.inMilliseconds)
+                        .reduce((a, b) => a + b) /
+                    _responseTimes.length)
+                .round(),
+          );
+
     return NetworkStatistics(
-      totalRequests: 0,
-      successfulRequests: 0,
-      failedRequests: 0,
-      totalBytesUploaded: 0,
-      totalBytesDownloaded: 0,
-      averageResponseTime: Duration.zero,
+      totalRequests: _totalRequests,
+      successfulRequests: _successfulRequests,
+      failedRequests: _failedRequests,
+      totalBytesUploaded: _totalBytesUploaded,
+      totalBytesDownloaded: _totalBytesDownloaded,
+      averageResponseTime: avgResponseTime,
     );
   }
 
   @override
-  void resetStatistics() {}
+  void resetStatistics() {
+    _totalRequests = 0;
+    _successfulRequests = 0;
+    _failedRequests = 0;
+    _totalBytesUploaded = 0;
+    _totalBytesDownloaded = 0;
+    _responseTimes.clear();
+  }
 
   @override
-  Future<void> dispose() async {}
+  Future<void> dispose() async {
+    _dio?.close();
+    _dio = null;
+    _connectivity = null;
+  }
 }
 
 /// Dio-based adapter for advanced HTTP features
